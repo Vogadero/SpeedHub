@@ -74,7 +74,7 @@
         /* ===== Layout ===== */
         main { max-width: 1100px; margin: 0 auto; padding: 24px 24px 48px; }
 
-        /* ===== Stats Row — 紧凑横向排列 ===== */
+        /* ===== Stats Row — 统一左侧边框风格 ===== */
         .stats-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -91,20 +91,46 @@
             position: relative;
             overflow: hidden;
             transition: border-color .2s, transform .15s;
+            /* 统一：左侧彩色边框 */
+            border-left: 3px solid transparent;
         }
         .stat:hover {
             border-color: #2e3d50;
             transform: translateY(-1px);
         }
 
-        /* 左侧彩色竖线 */
-        .stat::before {
-            content:''; position:absolute; left:0; top:12px; bottom:12px; width:3px; border-radius:2px;
+        /* 每个卡片不同的左边框颜色 */
+        .stat.c1 { border-left-color: var(--info); }
+        .stat.c2 { border-left-color: var(--ok); }
+        .stat.c3 { border-left-color: #a78bfa; }
+        .stat.c4 { border-left-color: var(--accent); }
+
+        /* 卡片入场动画 — 全部统一 */
+        .stat { animation: fadeUp .45s ease both; }
+        .stat.c1 { animation-delay: 0s; }
+        .stat.c2 { animation-delay: .06s; }
+        .stat.c3 { animation-delay: .12s; }
+        .stat.c4 { animation-delay: .18s; }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
-        .stat.c1::before { background: var(--info); }
-        .stat.c2::before { background: var(--ok); }
-        .stat.c3::before { background: #a78bfa; }
-        .stat.c4::before { background: var(--accent); }
+
+        /* 左边框呼吸光效 */
+        .stat::before {
+            content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+            border-radius: 3px 0 0 3px;
+            opacity: .5;
+            animation: borderGlow 3s ease-in-out infinite;
+        }
+        .stat.c1::before { background: var(--info); box-shadow: 0 0 8px var(--info); }
+        .stat.c2::before { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+        .stat.c3::before { background: #a78bfa; box-shadow: 0 0 8px #a78bfa; }
+        .stat.c4::before { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+        @keyframes borderGlow {
+            0%, 100% { opacity: .35; }
+            50%      { opacity: .9; }
+        }
 
         .stat-label {
             font-size: 11.5px; font-weight: 600;
@@ -124,72 +150,90 @@
         .stat-foot i.g { background: var(--ok); }
         .stat-foot i.b { background: var(--info); }
 
-        /* ===== Panels Area ===== */
-        .panels { display: grid; grid-template-columns: 1fr 320px; gap: 12px; margin-top: 20px; }
-        @media (max-width: 780px) { .panels { grid-template-columns: 1fr; } }
+        /* ===== Panels Area — 各占满一行 ===== */
+        .panels { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
 
         .panel {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--r);
             overflow: hidden;
+            /* 统一左侧边框风格 */
+            border-left: 3px solid transparent;
+            /* 入场动画 */
+            animation: fadeUp .45s ease both;
         }
+        .panel:nth-child(1) { animation-delay: .25s; border-left-color: var(--info); }
+        .panel:nth-child(2) { animation-delay: .32s; border-left-color: #a78bfa; }
+        .panel:nth-child(3) { animation-delay: .39s; border-left-color: var(--ok); }
+
+        /* 面板左侧边框呼吸动画 — 与统计卡片统一 */
+        .panel::before {
+            content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+            border-radius: 3px 0 0 3px;
+            opacity: .5;
+            animation: borderGlow 3s ease-in-out infinite;
+        }
+        .panel { position: relative; }
+        .panel:nth-child(1)::before { background: var(--info); box-shadow: 0 0 8px var(--info); }
+        .panel:nth-child(2)::before { background: #a78bfa; box-shadow: 0 0 8px #a78bfa; }
+        .panel:nth-child(3)::before { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 
         .panel-head {
             display:flex; align-items:center; justify-content:space-between;
-            padding: 12px 18px;
+            padding: 12px 20px;
             border-bottom: 1px solid var(--line);
             font-size: 12.5px; font-weight: 600; color: var(--text-2);
         }
-        .panel-head .tit { display:flex; align-items:center; gap:7px; }
-        .panel-head svg { width:15px;height:15px; fill:var(--primary); opacity:.85; }
+        .panel-head .tit { display:flex; align-items:center; gap:8px; }
+        .panel-head svg { width:16px;height:16px; fill:none; stroke:var(--primary); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; opacity:.85; }
         .panel-head .sub { font-size:11px; color:var(--text-3); font-weight:400; }
 
-        .pad { padding: 14px 18px; }
+        .pad { padding: 16px 20px; }
 
         /* Traffic bars */
         .t-list { list-style:none; }
         .t-item {
-            display:flex; align-items:center; gap:12px;
-            padding: 7px 0;
+            display:flex; align-items:center; gap:14px;
+            padding: 9px 0;
         }
         .t-item + .t-item { border-top: 1px solid var(--line); }
         .t-dom {
-            width: 190px; flex-shrink:0;
-            font-size:11.5px; color:var(--text-2);
+            width: 200px; flex-shrink:0;
+            font-size:12px; color:var(--text-2);
             white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
             font-family:'SF Mono','Cascadia Code','Consolas',monospace;
         }
-        .t-bar { flex:1; height:18px; background:rgba(0,212,255,.04); border-radius:9px; overflow:hidden; }
+        .t-bar { flex:1; height:20px; background:rgba(0,212,255,.05); border-radius:10px; overflow:hidden; }
         .t-fill {
-            height:100%; border-radius:9px;
+            height:100%; border-radius:10px;
             background: linear-gradient(90deg,var(--primary),#0090b3);
-            display:flex; align-items:center; justify-content:flex-end; padding-right:7px;
-            min-width:42px; transition:width .45s cubic-bezier(.16,1,.3,1);
+            display:flex; align-items:center; justify-content:flex-end; padding-right:8px;
+            min-width:46px; transition:width .45s cubic-bezier(.16,1,.3,1);
         }
         .t-fill.warn { background:linear-gradient(90deg,var(--accent),#d94e0a); }
-        .t-fill span { font-size:10px; font-weight:600; color:rgba(255,255,255,.9); }
+        .t-fill span { font-size:10.5px; font-weight:600; color:rgba(255,255,255,.92); }
 
         /* Domain list */
         .d-list { list-style:none; padding:2px 0; margin:0; }
         .d-item {
             display:flex; align-items:center; justify-content:space-between;
-            padding:8px 16px; transition:background .12s;
+            padding:9px 18px; transition:background .12s;
         }
         .d-item:hover { background:var(--surface-2); }
         .d-name {
-            font-size:12px; font-family:'SF Mono','Cascadia Code','Consolas',monospace; color:var(--text);
+            font-size:12.5px; font-family:'SF Mono','Cascadia Code','Consolas',monospace; color:var(--text);
         }
-        .d-tags { display:flex; gap:4px; flex-wrap:wrap; }
+        .d-tags { display:flex; gap:5px; flex-wrap:wrap; }
         .tag {
-            font-size:10px; padding:1px 7px; border-radius:8px; font-weight:600;
+            font-size:10.5px; padding:2px 8px; border-radius:8px; font-weight:600;
         }
         .tag.bad  { background:rgba(248,113,113,.10); color:#fca5a5; }
         .tag.good { background:rgba(52,211,153,.10); color:#86efac; }
         .tag.yel  { background:rgba(251,191,36,.10); color:#fde047; }
 
         .btn-xs {
-            font-size:11px; padding:3px 10px; border-radius:6px;
+            font-size:11px; padding:4px 12px; border-radius:6px;
             border:1px solid var(--border); background:transparent; color:var(--text-2);
             cursor:pointer; font-family:inherit; transition:all .15s;
         }
@@ -197,16 +241,11 @@
 
         /* Footer */
         footer {
-            text-align:center; padding:24px; color:var(--text-3); font-size:11.5px;
-            margin-top:4px;
+            text-align:center; padding:28px; color:var(--text-3); font-size:11.5px;
+            margin-top:8px;
         }
         footer a { color:var(--text-2); text-decoration:none; }
         footer a:hover { color:var(--primary); }
-
-        /* Anim */
-        @keyframes up { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        .in { animation:up .4s ease both; }
-        .d1{animation-delay:.05s} .d2{animation-delay:.1s} .d3{animation-delay:.15s}
     </style>
 </head>
 <body>
@@ -222,36 +261,88 @@
 <main>
 
 <!-- 统计：一行 4 列紧凑卡片 -->
-<section class="stats-row in" id="sg">
+<section class="stats-row" id="sg">
     <div class="stat c1">
         <div class="stat-label">DNS 解析请求</div>
         <div class="stat-num"><span id="dnsTotal">--</span></div>
         <div class="stat-foot"><i class="g"></i> 实时统计</div>
     </div>
-    <div class="stat c2 d1" style="opacity:0">
+    <div class="stat c2">
         <div class="stat-label">平均解析时间</div>
         <div class="stat-num"><span id="dnsAvgTime">--</span><span class="stat-unit">ms</span></div>
         <div class="stat-foot" id="chr"><i class="b"></i> 缓存命中: --</div>
     </div>
-    <div class="stat c3 d2" style="opacity:0">
+    <div class="stat c3">
         <div class="stat-label">成功率</div>
         <div class="stat-num"><span id="successRate">--</span><span class="stat-unit">%</span></div>
         <div class="stat-foot" id="ut"><i class="b"></i> 运行时间: --</div>
     </div>
-    <div class="stat c4 d3" style="opacity:0">
+    <div class="stat c4">
         <div class="stat-label">内存使用</div>
         <div class="stat-num"><span id="memoryUsage">--</span><span class="stat-unit">MB</span></div>
         <div class="stat-foot"><i class="b"></i> .NET 8 运行时</div>
     </div>
 </section>
 
-<!-- 下面面板 -->
-<section class="panels in" style="animation-delay:.2s;opacity:0">
+<!-- 下面面板：各占满一行 -->
+<section class="panels">
 
-    <!-- 流量 -->
+    <!-- DNS 解析请求 -->
     <div class="panel">
         <div class="panel-head">
-            <div class="tit"><svg viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg> 实时流量</div>
+            <div class="tit">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                DNS 解析请求
+            </div>
+            <span class="sub">实时监控</span>
+        </div>
+        <div class="pad" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+            <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;text-align:center">
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">总请求数</div>
+                <div style="font-size:22px;font-weight:800;color:var(--text)" id="pDnsTotal">--</div>
+            </div>
+            <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;text-align:center">
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">成功</div>
+                <div style="font-size:22px;font-weight:800;color:var(--ok)" id="pDnsSuccess">--</div>
+            </div>
+            <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;text-align:center">
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">失败</div>
+                <div style="font-size:22px;font-weight:800;color:var(--err)" id="pDnsFail">--</div>
+            </div>
+            <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;text-align:center">
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">缓存命中</div>
+                <div style="font-size:22px;font-weight:800;color:var(--info)" id="pDnsHitRate">--<small style="font-size:12px;color:var(--text-3)">%</small></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 域名规则 -->
+    <div class="panel">
+        <div class="panel-head">
+            <div class="tit">
+                <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 0 1 8 8c0 2.4-1 4.6-2.7 6.1l-1.5-1.5A5.97 5.97 0 0 0 18 12a6 6 0 1 0-6 6c1.5 0 2.9-.6 3.9-1.6l1.5 1.5A7.95 7.95 0 0 1 12 20z"/><path d="M10.5 10.5h3v3h-3z"/></svg>
+                域名规则
+            </div>
+            <button class="btn-xs" onclick="rd()">刷新</button>
+        </div>
+        <div style="padding:0;max-height:280px;overflow-y:auto;" id="dl">
+            <ul class="d-list" id="dlUl">
+                <li class="d-item"><span class="d-name">github.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span></div></li>
+                <li class="d-item"><span class="d-name">api.github.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span></div></li>
+                <li class="d-item"><span class="d-name">*.githubusercontent.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span><span class="tag yel">IgnoreMismatch</span></div></li>
+                <li class="d-item"><span class="d-name">ajax.googleapis.com</span><div class="d-tags"><span class="tag good">SNI ON</span><span class="tag yel">CDN替换</span></div></li>
+                <li class="d-item"><span class="d-name">fonts.googleapis.com</span><div class="d-tags"><span class="tag good">SNI ON</span><span class="tag yel">CDN替换</span></div></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 实时流量 -->
+    <div class="panel">
+        <div class="panel-head">
+            <div class="tit">
+                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                实时流量
+            </div>
             <span class="sub">2s 自动刷新</span>
         </div>
         <div class="pad" id="tp">
@@ -261,23 +352,6 @@
                 <li class="t-item"><span class="t-dom">raw.githubusercontent.com</span><div class="t-bar"><div class="t-fill" style="width:30%"><span>0.8 MB/s</span></div></div></li>
                 <li class="t-item"><span class="t-dom">avatars.githubusercontent.com</span><div class="t-bar"><div class="t-fill warn" style="width:55%"><span>1.5 MB/s</span></div></div></li>
                 <li class="t-item"><span class="t-dom">codeload.github.com</span><div class="t-bar"><div class="t-fill" style="width:20%"><span>0.4 MB/s</span></div></div></li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 域名规则 -->
-    <div class="panel">
-        <div class="panel-head">
-            <div class="tit"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg> 域名规则</div>
-            <button class="btn-xs" onclick="rd()">刷新</button>
-        </div>
-        <div style="padding:0;max-height:330px;overflow-y:auto;" id="dl">
-            <ul class="d-list" id="dlUl">
-                <li class="d-item"><span class="d-name">github.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span></div></li>
-                <li class="d-item"><span class="d-name">api.github.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span></div></li>
-                <li class="d-item"><span class="d-name">*.githubusercontent.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span><span class="tag yel">IgnoreMismatch</span></div></li>
-                <li class="d-item"><span class="d-name">ajax.googleapis.com</span><div class="d-tags"><span class="tag good">SNI ON</span><span class="tag yel">CDN替换</span></div></li>
-                <li class="d-item"><span class="d-name">fonts.googleapis.com</span><div class="d-tags"><span class="tag good">SNI ON</span><span class="tag yel">CDN替换</span></div></li>
             </ul>
         </div>
     </div>
@@ -317,6 +391,12 @@ conn.on('ReceiveStats',function(d){
     document.getElementById('chr').innerHTML = '<i class="g"></i> 缓存命中: ' + d.dns.hitRate.toFixed(1) + '%';
     document.getElementById('ut').innerHTML = '<i class="b"></i> 运行时间: ' + d.uptime;
     document.getElementById('memoryUsage').textContent = d.memoryUsageMb.toFixed(1);
+
+    // DNS 详情面板
+    document.getElementById('pDnsTotal').textContent = d.dns.totalRequests.toLocaleString();
+    document.getElementById('pDnsSuccess').textContent = (d.dns.totalRequests * d.dns.successRate).toFixed(0);
+    document.getElementById('pDnsFail').textContent = (d.dns.totalRequests * (1 - d.dns.successRate)).toFixed(0);
+    document.getElementById('pDnsHitRate').textContent = d.dns.hitRate.toFixed(1);
 });
 
 async function start() {
