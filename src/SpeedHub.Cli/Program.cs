@@ -309,22 +309,8 @@ public class SpeedHubStartup
                 // API 端点
                 endpoints.MapGet("/api/health", () => new { status = "ok", timestamp = DateTime.UtcNow });
 
-                // 兜底路由：返回友好提示，不依赖静态文件
-                endpoints.MapFallback(context =>
-                {
-                    context.Response.StatusCode = 200;
-                    context.Response.ContentType = "text/html; charset=utf-8";
-                    return context.Response.WriteAsync(@"<!DOCTYPE html>
-<html><head><meta charset='utf-8'><title>SpeedHub Dashboard</title>
-<style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0f1c;color:#e0e7ff;margin:0}
-.card{background:rgba(30,41,82,0.8);border-radius:16px;padding:40px;text-align:center;border:1px solid rgba(99,102,241,0.3)}
-h1{color:#818cf8;margin-bottom:12px}.status{color:#34d399}.hint{color:#94a3b8;font-size:14px;margin-top:16px}</style></head>
-<body><div class='card'>
-<h1>🚀 SpeedHub</h1><p class='status'>● 运行中 v3.0-alpha.1</p>
-<p class='hint'>Web Dashboard 正在开发中，敬请期待</p>
-<p class='hint'>代理端口 :38457 | API: <a href='/api/health' style='color:#818cf8'>/api/health</a></p>
-</div></body></html>");
-                });
+                // 默认路由：返回 Web Dashboard 前端页面（wwwroot/index.html）
+                endpoints.MapFallbackToFile("index.html");
             });
     }
 }
