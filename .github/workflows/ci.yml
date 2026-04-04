@@ -1,0 +1,38 @@
+# SpeedHub CI/CD Pipeline
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Restore dependencies
+        run: dotnet restore SpeedHub.sln --configfile nuget.config || dotnet restore SpeedHub.sln
+      
+      - name: Build solution
+        run: dotnet build SpeedHub.sln -c Release --no-restore
+      
+      - name: Run tests (if any)
+        run: dotnet test SpeedHub.sln -c Release --no-build --verbosity normal
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: speedhub-linux-x64
+          path: |
+            src/**/bin/Release/net8.0/linux-*/
+            appsettings*.json
