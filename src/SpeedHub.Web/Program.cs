@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Options;
 using Serilog;
 using SpeedHub.Core;
+using SpeedHub.Core.Tls;
 using SpeedHub.Web.Hubs;
 using Yarp.ReverseProxy.Forwarder;
 
@@ -96,7 +98,7 @@ app.MapFallbackToFile("index.html");
 // 启动日志
 Log.Information("🚀 SpeedHub v3.0 启动完成");
 Log.Information("   Web UI: http://localhost:{Port}", 38458);
-Log.Information("   HTTP Proxy: http://localhost:{Port}", builder.Configuration.GetValue<int>("SpeedHub:HttpProxyPort") ?? 80);
-Log.Information("   HTTPS Proxy: https://localhost:{Port}", builder.Configuration.GetValue<int>("SpeedHub:HttpsProxyPort") ?? 443);
+Log.Information("   HTTP Proxy: http://localhost:{Port}", builder.Configuration.GetValue("SpeedHub:HttpProxyPort", 80));
+Log.Information("   HTTPS Proxy: https://localhost:{Port}", builder.Configuration.GetValue("SpeedHub:HttpsProxyPort", 443));
 
 app.Run();
