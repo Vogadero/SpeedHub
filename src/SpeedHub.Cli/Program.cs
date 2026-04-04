@@ -56,8 +56,8 @@ class Program
     {
         try
         {
-            // 创建 Host
-            var hostBuilder = CreateHostBuilder(Array.Empty<string>());
+            // 创建 Host（在 status spinner 内部完成构建，这样启动过程有视觉反馈）
+            IHost? host = null;
 
             AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
@@ -71,9 +71,24 @@ class Program
                     Thread.Sleep(200);
 
                     ctx.Status = "启动代理服务器...";
+                    
+                    try
+                    {
+                        host = CreateHostBuilder(Array.Empty<string>()).Build();
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException("Host 构建失败: " + ex.Message, ex);
+                    }
                 });
 
-            AnsiConsole.MarkupLine("[green bold][[/] SpeedHub 启动成功！\n");
+            if (host == null)
+            {
+                AnsiConsole.MarkupLine("\n[red bold]x[/] [red]Host 创建失败，无法启动[/]");
+                return 1;
+            }
+
+            AnsiConsole.MarkupLine("\n[green bold][OK][/] [green]SpeedHub 启动成功！[/]");
 
             // 显示状态面板
             PrintStatusPanel();
@@ -82,14 +97,18 @@ class Program
             AnsiConsole.MarkupLine("\n[bold]Web Dashboard:[/] [blue underline]http://localhost:38458[/]");
             AnsiConsole.MarkupLine("[dim]按 Ctrl+C 停止服务...[/]\n");
 
-            await hostBuilder.RunConsoleAsync();
+            await host.RunAsync();
             return 0;
         }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"\n[red bold]x[/] 启动失败: {ex.Message}[/]");
-            AnsiConsole.MarkupLine($"[red dim]详情: {ex}[/]");
-            AnsiConsole.MarkupLine("\n[yellow]按任意键退出...[/]");
+            AnsiConsole.MarkupLine($"[red dim]{ex}[/]");
+            AnsiConsole.MarkupLine("\n[yellow]请检查:[/]");
+            AnsiConsole.MarkupLine("[yellow]- appsettings.json 是否存在且格式正确[/]");
+            AnsiConsole.MarkupLine("[yellow]- 端口 38457/38458 是否被占用[/]");
+            AnsiConsole.MarkupLine("[yellow]- logs/ 目录下的日志文件获取详细错误信息[/]\n");
+            AnsiConsole.MarkupLine("[yellow]按任意键退出...[/]");
             Console.ReadKey(intercept: true);
             return 1;
         }

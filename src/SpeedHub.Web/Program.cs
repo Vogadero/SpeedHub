@@ -4,7 +4,6 @@ using Serilog;
 using SpeedHub.Core;
 using SpeedHub.Core.Tls;
 using SpeedHub.Web.Hubs;
-using Yarp.ReverseProxy.Forwarder;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,15 +23,14 @@ builder.Host.UseSerilog();
 // 1. SpeedHub 核心服务
 builder.Services.AddSpeedHubCore(builder.Configuration);
 
-// 2. YARP 反向代理
-builder.Services.AddReverseProxy()
-    .LoadFromConfig(builder.Configuration.GetSection("Yarp"));
-
-// 3. SignalR 实时通信
+// 2. SignalR 实时通信
 builder.Services.AddSignalR();
 
-// 4. 控制器（RESTful API）
+// 3. 控制器（RESTful API）
 builder.Services.AddControllers();
+
+// 4. 统计推送后台服务（每2秒向 Dashboard 客户端推送数据）
+builder.Services.AddHostedService<StatsPushService>();
 
 // 5. CORS（允许Dashboard跨域访问）
 builder.Services.AddCors(options =>
@@ -97,7 +95,7 @@ app.MapGet("/api/config", (IOptions<SpeedHub.Core.Configuration.SpeedHubConfig> 
 app.MapFallbackToFile("index.html");
 
 // 启动日志
-Log.Information("🚀 SpeedHub v3.0 启动完成");
+Log.Information("SpeedHub v3.0 启动完成");
 Log.Information("   Web UI: http://localhost:{Port}", 38458);
 Log.Information("   HTTP Proxy: http://localhost:{Port}", builder.Configuration.GetValue("SpeedHub:HttpProxyPort", 80));
 Log.Information("   HTTPS Proxy: https://localhost:{Port}", builder.Configuration.GetValue("SpeedHub:HttpsProxyPort", 443));
