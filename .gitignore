@@ -1,0 +1,45 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+*.exe
+
+## IDE
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+
+## Build outputs
+publish/
+dist/
+
+## Logs
+logs/*.txt
+!logs/.gitkeep
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Certificates (安全!)
+cacert/*.key
+!cacert/.gitkeep
+
+## Environment
+.env
+.env.local
+appsettings.Development.json
+
+## Node (if any)
+node_modules/
+package-lock.json
+
+## Docker
+.docker/
