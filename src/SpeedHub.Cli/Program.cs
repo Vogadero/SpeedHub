@@ -88,7 +88,7 @@ class Program
                 return 1;
             }
 
-            AnsiConsole.MarkupLine("\n[green bold][+][/][green] SpeedHub startup successful![/]");
+            AnsiConsole.MarkupLine("\n[green bold]=>[/] [green] SpeedHub startup successful![/]");
 
             // 显示状态面板
             PrintStatusPanel();
@@ -134,7 +134,7 @@ class Program
             // TODO: 实现systemd服务安装
         }
 
-        AnsiConsole.MarkupLine("[green bold][+][/][green] Service installed[/]");
+        AnsiConsole.MarkupLine("[green bold]=>[/] [green]Service installed[/]");
         return 0;
     }
 
@@ -152,7 +152,7 @@ class Program
             AnsiConsole.MarkupLine("[yellow]正在卸载 systemd 服务...[/]");
         }
 
-        AnsiConsole.MarkupLine("[green bold][+][/][green] Service uninstalled[/]");
+        AnsiConsole.MarkupLine("[green bold]=>[/] [green]Service uninstalled[/]");
         return 0;
     }
 
