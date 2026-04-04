@@ -116,7 +116,7 @@ public static class ServiceCollectionExtensions
                 TlsIgnoreNameMismatch = entry.GetValue<bool>("TlsIgnoreNameMismatch"),
                 Timeout = entry.GetValue<TimeSpan?>("Timeout"),
                 Priority = entry.GetValue<int>("Priority", 100),
-                Enabled = entry.GetValue<bool>("Enabled", true),
+                Enabled = entry.GetValue<bool>("Enabled", true)
             });
 
             // IPAddress 解析
