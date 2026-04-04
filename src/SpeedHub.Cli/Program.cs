@@ -18,151 +18,151 @@ namespace SpeedHub.Cli
     /// </summary>
     class Program
     {
-    static async Task<int> Main(string[] args)
-    {
-        // 漂亮的 Banner
-        AnsiConsole.Write(
-            new FigletText("SpeedHub")
-                .Color(Color.Aqua));
-
-        AnsiConsole.MarkupLine($"[bold][aqua]v3.0-alpha.1[/][/]");
-        AnsiConsole.MarkupLine("[dim]新一代开发者网络加速器[/]\n");
-
-        var command = args.Length > 0 ? args[0] : "run";
-
-        return command switch
+        static async Task<int> Main(string[] args)
         {
-            "run" => await RunAsync(),
-            "start" => await InstallServiceAsync(),
-            "stop" => await UninstallServiceAsync(),
-            "--help" or "-h" => ShowHelp(),
-            _ => RunAndShowHelp()
-        };
-    }
+            // 漂亮的 Banner
+            AnsiConsole.Write(
+                new FigletText("SpeedHub")
+                    .Color(Color.Aqua));
 
-    /// <summary>
-    /// 显示帮助并返回错误码（用于 switch expression 的默认分支）
-    /// </summary>
-    private static int RunAndShowHelp()
-    {
-        ShowHelp();
-        return 1;
-    }
+            AnsiConsole.MarkupLine($"[bold][aqua]v3.0-alpha.1[/][/]");
+            AnsiConsole.MarkupLine("[dim]新一代开发者网络加速器[/]\n");
 
-    /// <summary>
-    /// 运行代理服务
-    /// </summary>
-    private static async Task<int> RunAsync()
-    {
-        try
-        {
-            // 创建 Host（在 status spinner 内部完成构建，这样启动过程有视觉反馈）
-            IHost? host = null;
+            var command = args.Length > 0 ? args[0] : "run";
 
-            AnsiConsole.Status()
-                .Spinner(Spinner.Known.Dots)
-                .SpinnerStyle(Style.Plain.Foreground(Color.Aqua))
-                .Start("正在启动 SpeedHub...", ctx =>
-                {
-                    ctx.Status = "初始化 DNS 解析器...";
-                    Thread.Sleep(300);
-
-                    ctx.Status = "加载域名配置...";
-                    Thread.Sleep(200);
-
-                    ctx.Status = "启动代理服务器...";
-                    
-                    try
-                    {
-                        host = CreateHostBuilder(Array.Empty<string>()).Build();
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new InvalidOperationException("Host 构建失败: " + ex.Message, ex);
-                    }
-                });
-
-            if (host == null)
+            return command switch
             {
-                AnsiConsole.MarkupLine("\n[red bold]X[/] [red]Host build failed, cannot start[/]");
-                return 1;
-            }
-
-            AnsiConsole.MarkupLine("\n[green bold]=>[/] [green] SpeedHub startup successful![/]");
-
-            // 显示状态面板
-            PrintStatusPanel();
-
-            // Web Dashboard 地址（可点击跳转）
-            AnsiConsole.MarkupLine("\n[bold]Web Dashboard:[/] [blue underline]http://localhost:38458[/]");
-            AnsiConsole.MarkupLine("[bold]HTTP Proxy:[/] [blue underline]http://localhost:38457[/]");
-            AnsiConsole.MarkupLine("[dim]按 Ctrl+C 停止服务...[/]\n");
-
-            await host.RunAsync();
-            return 0;
+                "run" => await RunAsync(),
+                "start" => await InstallServiceAsync(),
+                "stop" => await UninstallServiceAsync(),
+                "--help" or "-h" => ShowHelp(),
+                _ => RunAndShowHelp()
+            };
         }
-        catch (Exception ex)
+
+        /// <summary>
+        /// 显示帮助并返回错误码（用于 switch expression 的默认分支）
+        /// </summary>
+        private static int RunAndShowHelp()
         {
-            // Use plain text (not Markup) to avoid secondary crash if ex.Message contains [ or ]
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("[red bold]X[/]");
-            AnsiConsole.WriteLine($"  Startup failed: {ex.Message}");
-            AnsiConsole.WriteLine($"  {ex}");
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("[yellow]Please check:[/]");
-            AnsiConsole.MarkupLine("[yellow]- appsettings.json exists and is valid JSON[/]");
-            AnsiConsole.MarkupLine("[yellow]- ports 38457/38458 are not in use[/]");
-            AnsiConsole.MarkupLine("[yellow]- logs/ directory for detailed error info[/]");
-            AnsiConsole.MarkupLine("[yellow]Press any key to exit...[/]");
-            Console.ReadKey(intercept: true);
+            ShowHelp();
             return 1;
         }
-    }
 
-    /// <summary>
-    /// 安装为系统服务
-    /// </summary>
-    private static async Task<int> InstallServiceAsync()
-    {
-        if (OperatingSystem.IsWindows())
+        /// <summary>
+        /// 运行代理服务
+        /// </summary>
+        private static async Task<int> RunAsync()
         {
-            AnsiConsole.MarkupLine("[yellow]正在安装 Windows 服务...[/]");
-            // TODO: 实现Windows服务安装
+            try
+            {
+                // 创建 Host（在 status spinner 内部完成构建，这样启动过程有视觉反馈）
+                IHost? host = null;
+
+                AnsiConsole.Status()
+                    .Spinner(Spinner.Known.Dots)
+                    .SpinnerStyle(Style.Plain.Foreground(Color.Aqua))
+                    .Start("正在启动 SpeedHub...", ctx =>
+                    {
+                        ctx.Status = "初始化 DNS 解析器...";
+                        Thread.Sleep(300);
+
+                        ctx.Status = "加载域名配置...";
+                        Thread.Sleep(200);
+
+                        ctx.Status = "启动代理服务器...";
+                        
+                        try
+                        {
+                            host = CreateHostBuilder(Array.Empty<string>()).Build();
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new InvalidOperationException("Host 构建失败: " + ex.Message, ex);
+                        }
+                    });
+
+                if (host == null)
+                {
+                    AnsiConsole.MarkupLine("\n[red bold]X[/] [red]Host build failed, cannot start[/]");
+                    return 1;
+                }
+
+                AnsiConsole.MarkupLine("\n[green bold]=>[/] [green] SpeedHub startup successful![/]");
+
+                // 显示状态面板
+                PrintStatusPanel();
+
+                // Web Dashboard 地址（可点击跳转）
+                AnsiConsole.MarkupLine("\n[bold]Web Dashboard:[/] [blue underline]http://localhost:38458[/]");
+                AnsiConsole.MarkupLine("[bold]HTTP Proxy:[/] [blue underline]http://localhost:38457[/]");
+                AnsiConsole.MarkupLine("[dim]按 Ctrl+C 停止服务...[/]\n");
+
+                await host.RunAsync();
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                // Use plain text (not Markup) to avoid secondary crash if ex.Message contains [ or ]
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[red bold]X[/]");
+                AnsiConsole.WriteLine($"  Startup failed: {ex.Message}");
+                AnsiConsole.WriteLine($"  {ex}");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[yellow]Please check:[/]");
+                AnsiConsole.MarkupLine("[yellow]- appsettings.json exists and is valid JSON[/]");
+                AnsiConsole.MarkupLine("[yellow]- ports 38457/38458 are not in use[/]");
+                AnsiConsole.MarkupLine("[yellow]- logs/ directory for detailed error info[/]");
+                AnsiConsole.MarkupLine("[yellow]Press any key to exit...[/]");
+                Console.ReadKey(intercept: true);
+                return 1;
+            }
         }
-        else if (OperatingSystem.IsLinux())
+
+        /// <summary>
+        /// 安装为系统服务
+        /// </summary>
+        private static async Task<int> InstallServiceAsync()
         {
-            AnsiConsole.MarkupLine("[yellow]正在安装 systemd 服务...[/]");
-            // TODO: 实现systemd服务安装
+            if (OperatingSystem.IsWindows())
+            {
+                AnsiConsole.MarkupLine("[yellow]正在安装 Windows 服务...[/]");
+                // TODO: 实现Windows服务安装
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                AnsiConsole.MarkupLine("[yellow]正在安装 systemd 服务...[/]");
+                // TODO: 实现systemd服务安装
+            }
+
+            AnsiConsole.MarkupLine("[green bold]=>[/] [green]Service installed[/]");
+            return 0;
         }
 
-        AnsiConsole.MarkupLine("[green bold]=>[/] [green]Service installed[/]");
-        return 0;
-    }
-
-    /// <summary>
-    /// 卸载系统服务
-    /// </summary>
-    private static async Task<int> UninstallServiceAsync()
-    {
-        if (OperatingSystem.IsWindows())
+        /// <summary>
+        /// 卸载系统服务
+        /// </summary>
+        private static async Task<int> UninstallServiceAsync()
         {
-            AnsiConsole.MarkupLine("[yellow]正在卸载 Windows 服务...[/]");
+            if (OperatingSystem.IsWindows())
+            {
+                AnsiConsole.MarkupLine("[yellow]正在卸载 Windows 服务...[/]");
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                AnsiConsole.MarkupLine("[yellow]正在卸载 systemd 服务...[/]");
+            }
+
+            AnsiConsole.MarkupLine("[green bold]=>[/] [green]Service uninstalled[/]");
+            return 0;
         }
-        else if (OperatingSystem.IsLinux())
+
+        /// <summary>
+        /// 显示帮助信息
+        /// </summary>
+        private static int ShowHelp()
         {
-            AnsiConsole.MarkupLine("[yellow]正在卸载 systemd 服务...[/]");
-        }
-
-        AnsiConsole.MarkupLine("[green bold]=>[/] [green]Service uninstalled[/]");
-        return 0;
-    }
-
-    /// <summary>
-    /// 显示帮助信息
-    /// </summary>
-    private static int ShowHelp()
-    {
-        AnsiConsole.Write(new Markup(@"
+            AnsiConsole.Write(new Markup(@"
 [bold]用法:[/]
   speedhub [命令]
 
@@ -189,168 +189,153 @@ namespace SpeedHub.Cli
   GitHub: https://github.com/Vogadero/SpeedHub
   文档: https://speedhub.dev/docs
 "));
-        return 0;
-    }
+            return 0;
+        }
 
-    /// <summary>
-    /// 打印状态面板
-    /// </summary>
-    private static void PrintStatusPanel()
-    {
-        var table = new Table().Border(TableBorder.Rounded).BorderColor(Color.Grey);
-        table.AddColumn("[bold]组件[/]");
-        table.AddColumn("[bold]端口[/]");
-        table.AddColumn("[bold]状态[/]");
+        /// <summary>
+        /// 打印状态面板
+        /// </summary>
+        private static void PrintStatusPanel()
+        {
+            var table = new Table().Border(TableBorder.Rounded).BorderColor(Color.Grey);
+            table.AddColumn("[bold]组件[/]");
+            table.AddColumn("[bold]端口[/]");
+            table.AddColumn("[bold]状态[/]");
 
-        table.AddRow(
-            new Markup("[aqua]HTTP/HTTPS 代理[/]"),
-            new Text(":38457"),
-            new Markup("[green]● 运行中[/]"));
+            table.AddRow(
+                new Markup("[aqua]HTTP/HTTPS 代理[/]"),
+                new Text(":38457"),
+                new Markup("[green]● 运行中[/]"));
 
-        table.AddRow(
-            new Markup("[aqua]HTTPS 反向代理[/]"),
-            new Text(":443"),
-            new Markup("[green]● 运行中[/]"));
+            table.AddRow(
+                new Markup("[aqua]HTTPS 反向代理[/]"),
+                new Text(":443"),
+                new Markup("[green]● 运行中[/]"));
 
-        table.AddRow(
-            new Markup("[aqua]SSH 代理[/]"),
-            new Text(":22"),
-            new Markup("[green]● 运行中[/]"));
+            table.AddRow(
+                new Markup("[aqua]SSH 代理[/]"),
+                new Text(":22"),
+                new Markup("[green]● 运行中[/]"));
 
-        table.AddRow(
-            new Markup("[aqua]Git 协议代理[/]"),
-            new Text(":9418"),
-            new Markup("[green]● 运行中[/]"));
+            table.AddRow(
+                new Markup("[aqua]Git 协议代理[/]"),
+                new Text(":9418"),
+                new Markup("[green]● 运行中[/]"));
 
-        table.AddRow(
-            new Markup("[aqua]Web Dashboard[/]"),
-            new Text(":38458"),
-            new Markup("[green]● 可用[/]"));
+            table.AddRow(
+                new Markup("[aqua]Web Dashboard[/]"),
+                new Text(":38458"),
+                new Markup("[green]● 可用[/]"));
 
-        AnsiConsole.Write(table);
-    }
+            AnsiConsole.Write(table);
+        }
 
-    /// <summary>
-    /// 创建 Host Builder（集成 Web Dashboard + 代理核心）
-    /// </summary>
-    private static IHostBuilder CreateHostBuilder(string[] args)
-    {
-        return Host.CreateDefaultBuilder(args)
-            .ConfigureWebHostDefaults(webBuilder =>
-            {
-                // 只绑定 Web Dashboard 端口（38458）
-                // 不再额外配置，避免与 appsettings.json 中的 Kestrel 配置冲突
-                webBuilder.UseStartup<SpeedHubStartup>();
-            })
-            .ConfigureAppConfiguration((context, config) =>
-            {
-                config.SetBasePath(Directory.GetCurrentDirectory());
-                config.AddJsonFile("appsettings.json", optional: true);
-                config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json",
-                    optional: true);
-
-                // 加载各平台域名配置目录
-                var appsettingsDir = Path.Combine(Directory.GetCurrentDirectory(), "appsettings");
-                if (Directory.Exists(appsettingsDir))
+        /// <summary>
+        /// 创建 Host Builder（集成 Web Dashboard + 代理核心）
+        /// </summary>
+        private static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            return Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    foreach (var file in Directory.GetFiles(appsettingsDir, "appsettings.*.json"))
+                    webBuilder.UseStartup<SpeedHubStartup>();
+                })
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    config.SetBasePath(Directory.GetCurrentDirectory());
+                    config.AddJsonFile("appsettings.json", optional: true);
+                    config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json",
+                        optional: true);
+
+                    var appsettingsDir = Path.Combine(Directory.GetCurrentDirectory(), "appsettings");
+                    if (Directory.Exists(appsettingsDir))
                     {
-                        config.AddJsonFile(file, optional: false);
+                        foreach (var file in Directory.GetFiles(appsettingsDir, "appsettings.*.json"))
+                        {
+                            config.AddJsonFile(file, optional: false);
+                        }
                     }
-                }
 
-                config.AddEnvironmentVariables();
-                config.AddCommandLine(args);
-            });
+                    config.AddEnvironmentVariables();
+                    config.AddCommandLine(args);
+                });
         }
     }
-}
 
-/// <summary>
-/// ASP.NET Core Startup 类 - 集成 SpeedHub.Web 的所有功能到 CLI
-/// </summary>
-public class SpeedHubStartup
-{
-    private IConfiguration Configuration { get; }
-
-    public SpeedHubStartup(IConfiguration configuration)
+    /// <summary>
+    /// ASP.NET Core Startup 类 - 集成 SpeedHub.Web 的所有功能到 CLI
+    /// </summary>
+    public class SpeedHubStartup
     {
-        Configuration = configuration;
-    }
+        private IConfiguration Configuration { get; }
 
-    public void ConfigureServices(IServiceCollection services)
-    {
-        // SpeedHub 核心服务
-        services.AddSpeedHubCore(Configuration);
-
-        // SignalR 实时通信（camelCase JSON 序列化，匹配前端 JS 字段名）
-        services.AddSignalR(options =>
+        public SpeedHubStartup(IConfiguration configuration)
         {
-            options.KeepAliveInterval = TimeSpan.FromSeconds(10);
-            options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
-        }).AddJsonProtocol(options =>
-        {
-            options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-        });
-
-        // 控制器 API（同样使用 camelCase）
-        services.AddControllers().AddJsonOptions(options =>
-        {
-            options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-        });
-
-        // CORS
-        services.AddCors(options =>
-        {
-            options.AddDefaultPolicy(policy =>
-            {
-                policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader();
-            });
-        });
-    }
-
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-    {
-        // 全局异常处理 — 防止未捕获异常导致静默崩溃
-        app.UseExceptionHandler(errorApp =>
-        {
-            errorApp.Run(async context =>
-            {
-                var logger = context.RequestServices.GetRequiredService<ILogger<SpeedHubStartup>>();
-                var exception = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
-                logger.LogError(exception, "请求发生未处理异常: {Path}", context.Request.Path);
-                context.Response.StatusCode = 500;
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync(
-                    System.Text.Json.JsonSerializer.Serialize(new { error = "内部错误", message = exception?.Message }));
-            });
-        });
-
-        if (env.IsDevelopment())
-        {
-            app.UseDeveloperExceptionPage();
+            Configuration = configuration;
         }
 
-        app.UseRouting();
+        public void ConfigureServices(IServiceCollection services)
+        {
+            services.AddSpeedHubCore(Configuration);
 
-        // 代理中间件（在 UseRouting 之后、UseCors 之前，确保能正确获取路由信息）
-        // 所有到达 38457 端口的非 API/SignalR 请求都会被拦截并代理转发
-        app.UseMiddleware<SpeedHub.Core.Middleware.ProxyMiddleware>();
+            services.AddSignalR(options =>
+            {
+                options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+                options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+            }).AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            });
 
-        app.UseCors();
-        app.UseStaticFiles();
+            services.AddControllers().AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+            });
 
-        app.UseEndpoints(endpoints =>
+            services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
+            });
+        }
+
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        {
+            app.UseExceptionHandler(errorApp =>
+            {
+                errorApp.Run(async context =>
+                {
+                    var logger = context.RequestServices.GetRequiredService<ILogger<SpeedHubStartup>>();
+                    var exception = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+                    logger.LogError(exception, "请求发生未处理异常: {Path}", context.Request.Path);
+                    context.Response.StatusCode = 500;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsync(
+                        System.Text.Json.JsonSerializer.Serialize(new { error = "内部错误", message = exception?.Message }));
+                });
+            });
+
+            if (env.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+
+            app.UseRouting();
+
+            app.UseMiddleware<SpeedHub.Core.Middleware.ProxyMiddleware>();
+
+            app.UseCors();
+            app.UseStaticFiles();
+
+            app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
                 endpoints.MapHub<StatsHub>("/hubs/stats");
-
-                // API 端点
                 endpoints.MapGet("/api/health", () => new { status = "ok", timestamp = DateTime.UtcNow });
-
-                // 默认路由：返回 Web Dashboard 前端页面（wwwroot/index.html）
                 endpoints.MapFallbackToFile("index.html");
             });
         }
