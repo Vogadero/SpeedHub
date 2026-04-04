@@ -174,23 +174,45 @@ namespace SpeedHub.Core.Proxy
                 return;
             }
 
-            var targetIp = ips[0];
+            // 遍历所有 IP 尝试连接，失败自动轮换下一个
+            TcpClient? targetClient = null;
+            IPAddress? connectedIp = null;
+            var connectTimeout = TimeSpan.FromSeconds(5); // 单个 IP 超时缩短到 5 秒
 
-            // 建立到目标的 TCP 连接
-            using var targetClient = new TcpClient();
-            var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            connectCts.CancelAfter(TimeSpan.FromSeconds(15));
-
-            try
+            for (int i = 0; i < ips.Count; i++)
             {
-                _logger.LogInformation("[{ReqId}] 正在连接 {TargetIp}:{Port}...", requestId, targetIp, port);
-                await targetClient.ConnectAsync(targetIp, port, connectCts.Token);
-                _logger.LogInformation("[{ReqId}] TCP 连接成功: {TargetIp}:{Port}", requestId, targetIp, port);
+                var ip = ips[i];
+                var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                attemptCts.CancelAfter(connectTimeout);
+
+                try
+                {
+                    _logger.LogInformation("[{ReqId}] 尝试连接 [{Index}/{Total}] {Ip}:{Port}...", 
+                        requestId, i + 1, ips.Count, ip, port);
+                    
+                    targetClient = new TcpClient();
+                    await targetClient.ConnectAsync(ip, port, attemptCts.Token);
+                    
+                    connectedIp = ip;
+                    _logger.LogInformation("[{ReqId}] TCP 连接成功: {Ip}:{Port}", requestId, ip, port);
+                    break; // 连接成功，退出循环
+                }
+                catch (Exception ex) when (ex is OperationCanceledException or System.Net.Sockets.SocketException)
+                {
+                    _logger.LogWarning("[{ReqId}] 连接 {Ip}:{Port} 失败: {Msg}", requestId, ip, port, ex.Message);
+                    targetClient?.Dispose();
+                    targetClient = null;
+                }
+                finally
+                {
+                    attemptCts.Dispose();
+                }
             }
-            catch (Exception ex)
+
+            if (targetClient == null || connectedIp == null)
             {
-                _logger.LogError(ex, "[{ReqId}] 无法连接到目标 {TargetIp}:{Port}", requestId, targetIp, port);
-                var errorMsg = Encoding.UTF8.GetBytes("HTTP/1.1 502 Bad Gateway\r\n\r\n无法连接到目标服务器");
+                _logger.LogError("[{ReqId}] 所有 IP 都连接失败: {Ips}", requestId, string.Join(", ", ips));
+                var errorMsg = Encoding.UTF8.GetBytes("HTTP/1.1 502 Bad Gateway\r\n\r\n无法连接到目标服务器（所有 IP 均失败）");
                 await clientStream.WriteAsync(errorMsg, cancellationToken);
                 return;
             }
@@ -203,7 +225,7 @@ namespace SpeedHub.Core.Proxy
             await clientStream.WriteAsync(responseBytes, cancellationToken);
             await clientStream.FlushAsync(cancellationToken);
 
-            _logger.LogInformation("[{ReqId}] 已发送 200 Connection Established", requestId);
+            _logger.LogInformation("[{ReqId}] 已发送 200 Connection Established (通过 {Ip})", requestId, connectedIp);
 
             // 双向原始字节中继
             var targetStream = targetClient.GetStream();
