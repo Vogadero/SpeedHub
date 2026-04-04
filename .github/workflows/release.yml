@@ -57,8 +57,16 @@ jobs:
           cp appsettings.json publish/${{ matrix.runtime }}/ || true
           cp -r appsettings publish/${{ matrix.runtime }}/ || true
       
-      # 打包
-      - name: Package artifacts
+      # 打包 (Windows 用 PowerShell, Linux/macOS 用 bash)
+      - name: Package artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $src = "publish/${{ matrix.runtime }}"
+          Compress-Archive -Path "$($src)\*" -DestinationPath "${{ matrix.artifact }}"
+      
+      - name: Package artifacts (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           cd publish/${{ matrix.runtime }}
