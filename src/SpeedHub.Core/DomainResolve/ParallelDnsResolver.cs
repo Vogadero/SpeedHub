@@ -124,7 +124,7 @@ public class ParallelDnsResolver : IDnsResolver
                 var serverPort = int.Parse(parts[1]);
                 
                 var result = await _dnsClient.QueryAsync(domain, QueryType.A,
-                    new DnsQueryAndServerConfig
+                    new DnsQueryOptions
                     {
                         RequestDnsSecRecords = false,
                     }, cancellationToken: cts.Token);
