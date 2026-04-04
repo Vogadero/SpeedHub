@@ -108,9 +108,58 @@ jobs:
       - name: List downloaded files
         run: find artifacts -type f -name '*.zip' -o -name '*.tar.gz' | sort
       
+      # 从 git log 生成 release body（比自动生成的 Full Changelog 更有信息量）
+      - name: Generate release body
+        id: release_body
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          BODY=$(cat << 'EOF'
+          ## SpeedHub ${{ github.ref_name }}
+
+          ### 下载
+          | 平台 | 文件 |
+          |:------|:------|
+          | **Windows** x64 | `SpeedHub-win-x64.zip` |
+          | **Linux** x64 | `SpeedHub-linux-x64.tar.gz` |
+          | **macOS** Intel | `SpeedHub-osx-x64.zip` |
+          | **macOS** Apple Silicon | `SpeedHub-osx-arm64.zip` |
+
+          ### 快速上手
+          ```bash
+          # Windows
+          SpeedHub.Cli.exe
+
+          # Linux / macOS
+          chmod +x SpeedHub.Cli
+          ./SpeedHub.Cli
+          ```
+
+          启动后打开 **http://localhost:38458** 查看 Web Dashboard。
+
+          ---
+          ### 本次更新内容
+
+          EOF
+          )
+
+          # 追加 git log（仅当前 tag 的提交，不含之前 tag 的）
+          if [ -n "$PREV_TAG" ]; then
+            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+
+          BODY="${BODY}${LOG}"
+
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       # 创建 Release 并上传所有资产（单次操作，避免并发冲突）
       - name: Create Release & Upload Assets
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*/*
-          generate_release_notes: true
+          body: ${{ steps.release_body.outputs.body }}

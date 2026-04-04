@@ -73,13 +73,13 @@ class Program
                     ctx.Status = "启动代理服务器...";
                 });
 
-            AnsiConsole.MarkupLine("[green bold]✓[/] SpeedHub 启动成功！\n");
+            AnsiConsole.MarkupLine("[green bold][[/] SpeedHub 启动成功！\n");
 
             // 显示状态面板
             PrintStatusPanel();
 
             // Web Dashboard 地址（可点击跳转）
-            AnsiConsole.MarkupLine("\n[bold]🌐 Web Dashboard:[/] [blue underline]http://localhost:38458[/]");
+            AnsiConsole.MarkupLine("\n[bold]Web Dashboard:[/] [blue underline]http://localhost:38458[/]");
             AnsiConsole.MarkupLine("[dim]按 Ctrl+C 停止服务...[/]\n");
 
             await hostBuilder.RunConsoleAsync();
@@ -87,7 +87,7 @@ class Program
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"\n[red bold]✗ 启动失败: {ex.Message}[/]");
+            AnsiConsole.MarkupLine($"\n[red bold]x[/] 启动失败: {ex.Message}[/]");
             AnsiConsole.MarkupLine($"[red dim]详情: {ex}[/]");
             AnsiConsole.MarkupLine("\n[yellow]按任意键退出...[/]");
             Console.ReadKey(intercept: true);
@@ -111,7 +111,7 @@ class Program
             // TODO: 实现systemd服务安装
         }
 
-        AnsiConsole.MarkupLine("[green bold]✓[/] [green]服务安装完成[/]");
+        AnsiConsole.MarkupLine("[green bold][OK][/] [green]服务安装完成[/]");
         return 0;
     }
 
@@ -129,7 +129,7 @@ class Program
             AnsiConsole.MarkupLine("[yellow]正在卸载 systemd 服务...[/]");
         }
 
-        AnsiConsole.MarkupLine("[green bold]✓[/] [green]服务卸载完成[/]");
+        AnsiConsole.MarkupLine("[green bold][OK][/] [green]服务卸载完成[/]");
         return 0;
     }
 
