@@ -84,11 +84,11 @@ class Program
 
             if (host == null)
             {
-                AnsiConsole.MarkupLine("\n[red bold]x[/] [red]Host 创建失败，无法启动[/]");
+                AnsiConsole.MarkupLine("\n[red bold]X[/] [red]Host build failed, cannot start[/]");
                 return 1;
             }
 
-            AnsiConsole.MarkupLine("\n[green bold][OK][/] [green]SpeedHub 启动成功！[/]");
+            AnsiConsole.MarkupLine("\n[green bold][+][/][green] SpeedHub startup successful![/]");
 
             // 显示状态面板
             PrintStatusPanel();
@@ -102,13 +102,17 @@ class Program
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"\n[red bold]x[/] 启动失败: {ex.Message}[/]");
-            AnsiConsole.MarkupLine($"[red dim]{ex}[/]");
-            AnsiConsole.MarkupLine("\n[yellow]请检查:[/]");
-            AnsiConsole.MarkupLine("[yellow]- appsettings.json 是否存在且格式正确[/]");
-            AnsiConsole.MarkupLine("[yellow]- 端口 38457/38458 是否被占用[/]");
-            AnsiConsole.MarkupLine("[yellow]- logs/ 目录下的日志文件获取详细错误信息[/]\n");
-            AnsiConsole.MarkupLine("[yellow]按任意键退出...[/]");
+            // Use plain text (not Markup) to avoid secondary crash if ex.Message contains [ or ]
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[red bold]X[/]");
+            AnsiConsole.WriteLine($"  Startup failed: {ex.Message}");
+            AnsiConsole.WriteLine($"  {ex}");
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[yellow]Please check:[/]");
+            AnsiConsole.MarkupLine("[yellow]- appsettings.json exists and is valid JSON[/]");
+            AnsiConsole.MarkupLine("[yellow]- ports 38457/38458 are not in use[/]");
+            AnsiConsole.MarkupLine("[yellow]- logs/ directory for detailed error info[/]");
+            AnsiConsole.MarkupLine("[yellow]Press any key to exit...[/]");
             Console.ReadKey(intercept: true);
             return 1;
         }
@@ -130,7 +134,7 @@ class Program
             // TODO: 实现systemd服务安装
         }
 
-        AnsiConsole.MarkupLine("[green bold][OK][/] [green]服务安装完成[/]");
+        AnsiConsole.MarkupLine("[green bold][+][/][green] Service installed[/]");
         return 0;
     }
 
@@ -148,7 +152,7 @@ class Program
             AnsiConsole.MarkupLine("[yellow]正在卸载 systemd 服务...[/]");
         }
 
-        AnsiConsole.MarkupLine("[green bold][OK][/] [green]服务卸载完成[/]");
+        AnsiConsole.MarkupLine("[green bold][+][/][green] Service uninstalled[/]");
         return 0;
     }
 
