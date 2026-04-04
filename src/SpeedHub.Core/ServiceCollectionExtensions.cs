@@ -67,6 +67,9 @@ namespace SpeedHub.Core
             // 注册HTTP代理处理器
             services.AddScoped<HttpProxyHandler>();
 
+            // 注册 CONNECT 隧道服务（TcpListener 监听代理端口，处理 CONNECT 隧道）
+            services.AddHostedService<ConnectTunnelService>();
+
             // 注册统计服务
             services.AddSingleton<StatsService>();
 

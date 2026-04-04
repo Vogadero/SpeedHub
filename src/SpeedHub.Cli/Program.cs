@@ -232,12 +232,16 @@ namespace SpeedHub.Cli
 
         /// <summary>
         /// 创建 Host Builder（集成 Web Dashboard + 代理核心）
+        /// 
+        /// 注意：Kestrel 只监听内部端口 5000（用于 HTTP 代理请求转发和 Dashboard）。
+        /// 代理端口 38457 由 ConnectTunnelService（TcpListener）监听。
         /// </summary>
         private static IHostBuilder CreateHostBuilder(string[] args)
         {
             return Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
+                    webBuilder.UseUrls("http://localhost:5000"); // Kestrel 内部端口
                     webBuilder.UseStartup<SpeedHubStartup>();
                 })
                 .ConfigureAppConfiguration((context, config) =>

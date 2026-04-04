@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -22,7 +21,6 @@ namespace SpeedHub.Core.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<ProxyMiddleware> _logger;
-        private static readonly Regex HostPortRegex = new(@"^(.+?):(\d+)$", RegexOptions.Compiled);
 
         public ProxyMiddleware(RequestDelegate next, ILogger<ProxyMiddleware> logger)
         {
@@ -44,92 +42,31 @@ namespace SpeedHub.Core.Middleware
 
             string? targetDomain = null;
 
-            if (request.Method == "CONNECT")
+            // ========== 普通 HTTP 代理请求 ==========
+            // 浏览器发送格式: GET http://github.com/path HTTP/1.1
+            // 注意：CONNECT 请求由 ConnectTunnelService 处理，不会到达这里
+
+            // 策略 1: 检查 Proxy-Connection 头（HTTP 代理请求的标志性头）
+            bool isProxyRequest = !string.IsNullOrEmpty(request.Headers["Proxy-Connection"]);
+
+            // 策略 2: 从 X-Original-URL 头解析目标
+            if (!isProxyRequest)
             {
-                // ========== HTTPS CONNECT 隧道请求 ==========
-                // 浏览器发送格式: CONNECT github.com:443 HTTP/1.1
-                //
-                // ⚠️ 关键：Kestrel 不会把 CONNECT 后的数据路由到 Request.Body
-                // 必须直接从底层 Socket 读取原始 TCP 字节流
-                //
-                // 策略：尝试从 Features 获取底层 Socket
-                var socket = GetClientSocket(context);
-                if (socket != null)
+                var rawUrl = request.Headers["X-Original-URL"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(rawUrl) && Uri.TryCreate(rawUrl, UriKind.Absolute, out var proxyUri))
                 {
-                    // 提取目标域名
-                    var connectTarget = request.Path.Value?.Trim('/');
-                    if (string.IsNullOrEmpty(connectTarget) || connectTarget == "" || connectTarget.StartsWith("/"))
-                    {
-                        var authority = request.Headers["Host"].FirstOrDefault()
-                                     ?? request.Headers[":authority"].FirstOrDefault();
-                        if (!string.IsNullOrEmpty(authority))
-                        {
-                            var match = HostPortRegex.Match(authority);
-                            targetDomain = match.Success ? match.Groups[1].Value : authority;
-                        }
-                    }
-                    else
-                    {
-                        targetDomain = connectTarget;
-                    }
-
-                    if (!string.IsNullOrEmpty(targetDomain))
-                    {
-                        _logger.LogInformation("[PROXY] CONNECT 隧道目标: {Target} (通过底层 Socket)", targetDomain);
-                        
-                        // 直接处理 CONNECT 隧道（绕过 Kestrel 的 HTTP 管道）
-                        await proxyHandler.HandleConnectTunnelWithSocketAsync(socket, targetDomain);
-                        return; // 隧道完成后直接返回，不走 Kestrel 的响应管道
-                    }
-                }
-
-                // 如果无法获取底层 Socket，回退到旧方案（可能不工作）
-                _logger.LogWarning("[PROXY] 无法获取底层 Socket，回退到 HttpContext 方案");
-                
-                // 从 Path 或 Host 提取目标
-                var connectTarget2 = request.Path.Value?.Trim('/');
-                if (!string.IsNullOrEmpty(connectTarget2) && connectTarget2 != "" && !connectTarget2.StartsWith("/"))
-                {
-                    targetDomain = connectTarget2;
-                }
-                if (string.IsNullOrEmpty(targetDomain))
-                {
-                    var authority = request.Headers["Host"].FirstOrDefault()
-                                 ?? request.Headers[":authority"].FirstOrDefault();
-                    if (!string.IsNullOrEmpty(authority))
-                    {
-                        var match = HostPortRegex.Match(authority);
-                        targetDomain = match.Success ? match.Groups[1].Value : authority;
-                    }
+                    targetDomain = proxyUri.Host;
+                    isProxyRequest = true;
+                    _logger.LogInformation("[PROXY] HTTP 代理目标 (from X-Original-URL): {Target}", targetDomain);
                 }
             }
-            else
+
+            // 如果不是代理请求，放行
+            if (!isProxyRequest || string.IsNullOrEmpty(targetDomain))
             {
-                // ========== 普通 HTTP 代理请求 ==========
-                // 浏览器发送格式: GET http://github.com/path HTTP/1.1
-
-                // 策略 1: 检查 Proxy-Connection 头（HTTP 代理请求的标志性头）
-                bool isProxyRequest = !string.IsNullOrEmpty(request.Headers["Proxy-Connection"]);
-
-                // 策略 2: 从 X-Original-URL 头解析目标
-                if (!isProxyRequest)
-                {
-                    var rawUrl = request.Headers["X-Original-URL"].FirstOrDefault();
-                    if (!string.IsNullOrEmpty(rawUrl) && Uri.TryCreate(rawUrl, UriKind.Absolute, out var proxyUri))
-                    {
-                        targetDomain = proxyUri.Host;
-                        isProxyRequest = true;
-                        _logger.LogInformation("[PROXY] HTTP 代理目标 (from X-Original-URL): {Target}", targetDomain);
-                    }
-                }
-
-                // 如果不是代理请求，放行
-                if (!isProxyRequest || string.IsNullOrEmpty(targetDomain))
-                {
-                    _logger.LogInformation("[PROXY] 非代理请求，放行: {Method} {Path}", request.Method, request.Path);
-                    await _next(context);
-                    return;
-                }
+                _logger.LogInformation("[PROXY] 非代理请求，放行: {Method} {Path}", request.Method, request.Path);
+                await _next(context);
+                return;
             }
 
             // ========== 执行代理转发 ==========
@@ -166,41 +103,6 @@ namespace SpeedHub.Core.Middleware
             // 无法解析目标，放行
             _logger.LogWarning("[PROXY] 无法解析代理目标，放行: {Method} {Path}", request.Method, request.Path);
             await _next(context);
-        }
-
-        /// <summary>
-        /// 尝试从 HttpContext 获取客户端底层 Socket
-        /// 
-        /// 这是 CONNECT 隧道工作的关键——需要从原始 TCP 连接读取/写入数据，
-        /// 而不是通过 Kestrel 的 HTTP 抽象层（Request.Body / Response.Body）
-        /// </summary>
-        private static Socket? GetClientSocket(HttpContext context)
-        {
-            // 遍历所有 Features 查找包含 Socket 属性的对象
-            foreach (var feature in context.Features)
-            {
-                if (feature.Value == null) continue;
-                
-                var type = feature.Value.GetType();
-                
-                // 查找名为 "Socket" 的属性
-                var socketProp = type.GetProperty("Socket");
-                if (socketProp?.PropertyType == typeof(Socket))
-                {
-                    return socketProp.GetValue(feature.Value) as Socket;
-                }
-                
-                // 查找类型为 Socket 的属性
-                foreach (var prop in type.GetProperties())
-                {
-                    if (prop.PropertyType == typeof(Socket))
-                    {
-                        return prop.GetValue(feature.Value) as Socket;
-                    }
-                }
-            }
-
-            return null;
         }
 
         /// <summary>
