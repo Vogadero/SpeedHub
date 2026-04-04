@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpeedHub v3.0 - Dashboard</title>
+    <title>SpeedHub v3.0 - 控制面板</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <style>
         :root {
@@ -77,30 +77,58 @@
         /* ===== Layout ===== */
         main { max-width: 1100px; margin: 0 auto; padding: 24px 24px 48px; }
 
-        /* Info banner */
+        /* Info banner - 更醒目的使用指南 */
         .info-banner {
-            display: flex; align-items: center; gap: 10px;
-            background: rgba(0,212,255,.06); border: 1px solid rgba(0,212,255,.15);
-            border-radius: 8px; padding: 10px 16px; margin: 16px auto 0;
-            max-width: 1100px; font-size: 12.5px; color: var(--text-2); line-height: 1.5;
+            display: flex; align-items: flex-start; gap: 12px;
+            background: linear-gradient(135deg, rgba(0,212,255,.08), rgba(52,211,153,.06));
+            border: 1px solid rgba(0,212,255,.18);
+            border-radius: 12px; padding: 14px 20px; margin: 16px auto 0;
+            max-width: 1100px; font-size: 13px; color: var(--text-2); line-height: 1.7;
         }
         .info-banner-icon {
-            width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+            width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
             background: var(--primary); color: #000; font-weight: 800;
-            display: flex; align-items: center; justify-content: center; font-size: 12px;
+            display: flex; align-items: center; justify-content: center; font-size: 13px;
+            margin-top: 1px;
         }
         .info-banner strong { color: var(--primary); }
+        .info-banner code {
+            background: rgba(0,212,255,.15); color: var(--primary);
+            padding: 1px 6px; border-radius: 4px; font-size: 12.5px;
+            font-family: 'SF Mono','Cascadia Code','Consolas',monospace;
+        }
         .info-banner-close {
-            background:none; border:none; color:var(--text-3); font-size:18px; cursor:pointer;
-            padding:0 4px; margin-left:auto; flex-shrink:0;
+            background:none; border:none; color:var(--text-3); font-size:20px; cursor:pointer;
+            padding:0 4px; margin-left:auto; flex-shrink:0; line-height:1;
         }
         .info-banner-close:hover { color: var(--text); }
+
+        /* Port reminder - 醒目端口提示卡片 */
+        .port-card {
+            display: grid; grid-template-columns: auto 1fr auto;
+            align-items: center; gap: 16px;
+            background: rgba(251,191,36,.06); border: 1px solid rgba(251,191,36,.2);
+            border-radius: 10px; padding: 14px 20px; margin-top: 14px;
+            max-width: 1100px;
+        }
+        .port-card-icon {
+            font-size: 22px; line-height: 1;
+        }
+        .port-card-text { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+        .port-card-text strong { color: var(--warn); }
+        .port-card-num {
+            font-family: 'SF Mono','Cascadia Code','Consolas',monospace;
+            font-size: 20px; font-weight: 800; color: var(--warn);
+            background: rgba(251,191,36,.1); padding: 6px 14px;
+            border-radius: 8px; white-space: nowrap;
+        }
 
         /* ===== Stats Row ===== */
         .stats-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 12px;
+            margin-top: 20px;
         }
         @media (max-width: 860px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 480px) { .stats-row { grid-template-columns: 1fr; } }
@@ -152,7 +180,7 @@
 
         .stat-label {
             font-size: 11.5px; font-weight: 600;
-            color: var(--text-2); text-transform: uppercase; letter-spacing: .05em;
+            color: var(--text-2); letter-spacing: .02em;
             margin-bottom: 6px;
         }
         .stat-num {
@@ -198,7 +226,7 @@
             display:flex; align-items:center; justify-content:space-between;
             padding: 12px 20px;
             border-bottom: 1px solid var(--line);
-            font-size: 12.5px; font-weight: 600; color: var(--text-2);
+            font-size: 13px; font-weight: 600; color: var(--text-2);
         }
         .panel-head .tit { display:flex; align-items:center; gap:8px; }
         .panel-head svg { width:16px;height:16px; fill:none; stroke:var(--primary); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; opacity:.85; }
@@ -285,102 +313,115 @@
         <div class="brand-mark">S</div>
         SpeedHub<span class="brand-ver">v3.0</span>
     </a>
-    <div class="conn busy" id="st"><span class="dot"></span><span id="stT">Connecting...</span></div>
+    <div class="conn busy" id="st"><span class="dot"></span><span id="stT">连接中...</span></div>
 </header>
 
-<!-- Info banner -->
+<!-- 使用指南横幅 -->
 <div class="info-banner" id="infoBanner">
     <span class="info-banner-icon">i</span>
-    <span>SpeedHub is a local network proxy accelerator for faster access to GitHub, Google Fonts and other services. Set your browser or Git proxy to <strong>:38457</strong> to activate real-time traffic monitoring.</span>
-    <button class="info-banner-close" onclick="document.getElementById('infoBanner').style.display='none'">&times;</button>
+    <div>
+        <strong>SpeedHub</strong> 是本地网络代理加速器，用于加速访问 GitHub、Google Fonts 等服务。<br>
+        将浏览器或 Git 的<strong>代理地址</strong>设置为 <code>127.0.0.1:38457</code> 即可激活加速（不是当前页面的 38458 端口！）。
+    </div>
+    <button class="info-banner-close" onclick="document.getElementById('infoBanner').style.display='none';document.getElementById('portCard').style.display='grid'">&times;</button>
+</div>
+
+<!-- 端口提醒卡片（关闭横幅后显示） -->
+<div class="port-card" id="portCard" style="display:none">
+    <span class="port-card-icon">&#128274;</span>
+    <div class="port-card-text">
+        <strong>浏览器 / Git 代理端口：</strong><br>
+        设置为下方端口后刷新页面即可看到真实数据
+    </div>
+    <span class="port-card-num">:38457</span>
 </div>
 
 <main>
 
-<!-- Stats row: 4 compact cards -->
+<!-- 统计卡片行 -->
 <section class="stats-row" id="sg">
     <div class="stat c1">
-        <div class="stat-label">DNS Requests</div>
+        <div class="stat-label">DNS 请求总数</div>
         <div class="stat-num"><span id="dnsTotal">--</span></div>
-        <div class="stat-foot"><i class="g"></i> Real-time</div>
+        <div class="stat-foot"><i class="g"></i> 实时统计</div>
     </div>
     <div class="stat c2">
-        <div class="stat-label">Avg Resolution</div>
+        <div class="stat-label">平均解析耗时</div>
         <div class="stat-num"><span id="dnsAvgTime">--</span><span class="stat-unit">ms</span></div>
-        <div class="stat-foot" id="chr"><i class="b"></i> Cache hit: --%</div>
+        <div class="stat-foot" id="chr"><i class="b"></i> 缓存命中率: --%</div>
     </div>
     <div class="stat c3">
-        <div class="stat-label">Success Rate</div>
+        <div class="stat-label">成功率</div>
         <div class="stat-num"><span id="successRate">--</span><span class="stat-unit">%</span></div>
-        <div class="stat-foot" id="ut"><i class="b"></i> Uptime: --</div>
+        <div class="stat-foot" id="ut"><i class="b"></i> 运行时间: --</div>
     </div>
     <div class="stat c4">
-        <div class="stat-label">Memory</div>
+        <div class="stat-label">内存占用</div>
         <div class="stat-num"><span id="memoryUsage">--</span><span class="stat-unit">MB</span></div>
         <div class="stat-foot"><i class="b"></i> .NET 8 Runtime</div>
     </div>
 </section>
 
-<!-- Panels: each takes full row -->
+<!-- 面板区域 -->
 <section class="panels">
 
-    <!-- DNS detail -->
+    <!-- DNS 详情 -->
     <div class="panel">
         <div class="panel-head">
             <div class="tit">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                DNS Requests
+                DNS 解析详情
             </div>
-            <span class="sub">Live monitoring</span>
+            <span class="sub">实时监控</span>
         </div>
         <div class="pad" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
             <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;text-align:center">
-                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Total</div>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.02em;font-weight:600">总请求</div>
                 <div style="font-size:22px;font-weight:800;color:var(--text)" id="pDnsTotal">--</div>
             </div>
             <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;text-align:center">
-                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Success</div>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.02em;font-weight:600">成功</div>
                 <div style="font-size:22px;font-weight:800;color:var(--ok)" id="pDnsSuccess">--</div>
             </div>
             <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;text-align:center">
-                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Failed</div>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.02em;font-weight:600">失败</div>
                 <div style="font-size:22px;font-weight:800;color:var(--err)" id="pDnsFail">--</div>
             </div>
             <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;text-align:center">
-                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Cache Hit</div>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.02em;font-weight:600">缓存命中</div>
                 <div style="font-size:22px;font-weight:800;color:var(--info)" id="pDnsHitRate">--<small style="font-size:12px;color:var(--text-3)">%</small></div>
             </div>
         </div>
     </div>
 
-    <!-- Domain rules -->
+    <!-- 域名规则 -->
     <div class="panel">
         <div class="panel-head">
             <div class="tit">
                 <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 0 1 8 8c0 2.4-1 4.6-2.7 6.1l-1.5-1.5A5.97 5.97 0 0 0 18 12a6 6 0 1 0-6 6c1.5 0 2.9-.6 3.9-1.6l1.5 1.5A7.95 7.95 0 0 1 12 20z"/><path d="M10.5 10.5h3v3h-3z"/></svg>
-                Domain Rules
+                域名规则
             </div>
-            <button class="btn-xs" id="rdBtn" onclick="rd()">Refresh</button>
+            <button class="btn-xs" id="rdBtn" onclick="rd()">刷新</button>
         </div>
         <div style="padding:0;max-height:280px;overflow-y:auto;" id="dl">
             <ul class="d-list" id="dlUl">
-                <li class="d-item"><span class="d-name">github.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span></div></li>
-                <li class="d-item"><span class="d-name">api.github.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span></div></li>
-                <li class="d-item"><span class="d-name">*.githubusercontent.com</span><div class="d-tags"><span class="tag bad">SNI OFF</span><span class="tag yel">IgnoreMismatch</span></div></li>
-                <li class="d-item"><span class="d-name">ajax.googleapis.com</span><div class="d-tags"><span class="tag good">SNI ON</span><span class="tag yel">CDN</span></div></li>
-                <li class="d-item"><span class="d-name">fonts.googleapis.com</span><div class="d-tags"><span class="tag good">SNI ON</span><span class="tag yel">CDN</span></div></li>
+                <li class="d-item"><span class="d-name">github.com</span><div class="d-tags"><span class="tag bad">SNI 关闭</span></div></li>
+                <li class="d-item"><span class="d-name">api.github.com</span><div class="d-tags"><span class="tag bad">SNI 关闭</span></div></li>
+                <li class="d-item"><span class="d-name">*.githubusercontent.com</span><div class="d-tags"><span class="tag bad">SNI 关闭</span><span class="tag yel">忽略证书</span></div></li>
+                <li class="d-item"><span class="d-name">ajax.googleapis.com</span><div class="d-tags"><span class="tag good">SNI 开启</span><span class="tag yel">CDN 替换</span></div></li>
+                <li class="d-item"><span class="d-name">fonts.googleapis.com</span><div class="d-tags"><span class="tag good">SNI 开启</span><span class="tag yel">CDN 替换</span></div></li>
             </ul>
         </div>
     </div>
 
-    <!-- Live traffic (simulated when no proxy traffic) -->
+    <!-- 实时流量 -->
     <div class="panel">
         <div class="panel-head">
             <div class="tit">
                 <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                Live Traffic
+                实时流量
             </div>
-            <span class="sub"><span class="demo-badge">SIMULATED</span> &nbsp; 2s refresh</span>
+            <span class="sub"><span class="demo-badge">模拟数据</span> &nbsp; 2秒刷新</span>
         </div>
         <div class="pad" id="tp">
             <ul class="t-list">
@@ -399,40 +440,42 @@
 
 <footer>
     <p>SpeedHub v3.0 &mdash; by <a href="https://github.com/Vogadero" target="_blank">@Vogadero</a> &nbsp;|&nbsp; <a href="https://github.com/Vogadero/SpeedHub" target="_blank">GitHub</a></p>
-    <p style="margin-top:4px">.NET 8 + Local Proxy Engine &nbsp;|&nbsp; MIT License</p>
+    <p style="margin-top:4px">.NET 8 + 本地代理引擎 &nbsp;|&nbsp; MIT License</p>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
-/* SignalR connection */
+/* SignalR 连接 */
 var conn = new signalR.HubConnectionBuilder()
     .withUrl('/hubs/stats')
     .withAutomaticReconnect([0,2000,5000,10000])
     .configureLogging(signalR.LogLevel.Information)
     .build();
 
+/* 连接状态文字（中文） */
 function setSt(s) {
     var el = document.getElementById('st'), t = document.getElementById('stT');
     var m = {
-        Connecting:{c:'busy',x:'Connecting...'}, Connected:{c:'ok',x:'Connected'},
-        Reconnecting:{c:'warn',x:'Reconnecting...'}, Disconnected:{c:'err',x:'Disconnected'}
+        Connecting:{c:'busy',x:'连接中...'}, Connected:{c:'ok',x:'已连接'},
+        Reconnecting:{c:'warn',x:'重连中...'}, Disconnected:{c:'err',x:'已断开'}
     };
     var v = m[s]||{c:'',x:s};
     el.className = 'conn '+v.c; el.innerHTML='<span class="dot"></span><span>'+v.x+'</span>';
 }
 
+/* 接收统计数据 */
 conn.on('ReceiveStats',function(d){
     var dns = d.dns || {};
 
-    // Top stat cards
+    // 顶部统计卡片
     document.getElementById('dnsTotal').textContent = (dns.totalRequests || 0).toLocaleString();
     document.getElementById('dnsAvgTime').textContent = (dns.avgResolutionTimeMs || 0).toFixed(1);
     document.getElementById('successRate').textContent = (dns.successRate || 0).toFixed(1);
-    document.getElementById('chr').innerHTML = '<i class="g"></i> Cache hit: ' + (dns.hitRate || 0).toFixed(1) + '%';
-    document.getElementById('ut').innerHTML = '<i class="b"></i> Uptime: ' + (d.uptime || '--');
+    document.getElementById('chr').innerHTML = '<i class="g"></i> 缓存命中率: ' + (dns.hitRate || 0).toFixed(1) + '%';
+    document.getElementById('ut').innerHTML = '<i class="b"></i> 运行时间: ' + (d.uptime || '--');
     document.getElementById('memoryUsage').textContent = (d.memoryUsageMb || 0).toFixed(1);
 
-    // DNS detail panel
+    // DNS 详情面板
     document.getElementById('pDnsTotal').textContent = (dns.totalRequests || 0).toLocaleString();
     var successVal = ((dns.totalRequests || 0) * (dns.successRate || 0)).toFixed(0);
     var failVal    = ((dns.totalRequests || 0) * (1 - (dns.successRate || 0))).toFixed(0);
@@ -440,10 +483,11 @@ conn.on('ReceiveStats',function(d){
     document.getElementById('pDnsFail').textContent = failVal;
     document.getElementById('pDnsHitRate').textContent = (dns.hitRate || 0).toFixed(1);
 
-    // Traffic simulation
+    // 流量模拟
     updateTraffic(dns);
 });
 
+/* 启动连接 */
 async function start() {
     try { setSt('Connecting'); await conn.start(); setSt('Connected'); }
     catch(e) { console.error('[SpeedHub]', e); setSt('Disconnected'); }
@@ -453,7 +497,7 @@ conn.onreconnecting(function(){setSt('Reconnecting')});
 conn.onreconnected(function(){setSt('Connected')});
 start();
 
-/* === Domain rules with visual feedback === */
+/* === 域名规则 === */
 var domainData = [
     {pattern:'github.com', tlsSni:false, destination:null, tlsIgnoreNameMismatch:false},
     {pattern:'api.github.com', tlsSni:false, destination:null, tlsIgnoreNameMismatch:false},
@@ -465,43 +509,43 @@ var domainData = [
 function rd() {
     var btn = document.getElementById('rdBtn');
     btn.classList.add('loading');
-    btn.textContent = 'Loading...';
+    btn.textContent = '加载中...';
 
     fetch('/api/domains')
         .then(function(r){ return r.json(); })
         .then(function(d){
             if(Array.isArray(d) && d.length > 0) renderD(d);
             else renderD(domainData);
-            showToast('Domain rules loaded', 'ok');
+            showToast('域名规则已加载', 'ok');
         })
         .catch(function(){
             renderD(domainData);
-            showToast('Using built-in domain rules (API unavailable)', 'ok');
+            showToast('使用内置域名规则（API 暂不可用）', 'ok');
         })
         .finally(function(){
             btn.classList.remove('loading');
-            btn.textContent = 'Refresh';
+            btn.textContent = '刷新';
         });
 }
 
-// Auto-load domains on init
+// 页面加载时自动获取域名规则
 rd();
 
 function renderD(ds) {
     var ul = document.getElementById('dlUl');
     ul.innerHTML = ds.map(function(d){
         var t='';
-        if(d.tlsSni===false) t+='<span class="tag bad">SNI OFF</span>';
-        if(d.tlsSni===true)  t+='<span class="tag good">SNI ON</span>';
-        if(d.destination)      t+='<span class="tag yel">CDN</span>';
-        if(d.tlsIgnoreNameMismatch) t+='<span class="tag yel">IgnoreMismatch</span>';
+        if(d.tlsSni===false) t+='<span class="tag bad">SNI 关闭</span>';
+        if(d.tlsSni===true)  t+='<span class="tag good">SNI 开启</span>';
+        if(d.destination)      t+='<span class="tag yel">CDN 替换</span>';
+        if(d.tlsIgnoreNameMismatch) t+='<span class="tag yel">忽略证书</span>';
         return '<li class="d-item"><span class="d-name">'+esc(d.pattern)+'</span><div class="d-tags">'+t+'</div></li>';
     }).join('');
 }
 
 function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
-/* === Toast notification === */
+/* === Toast 提示 === */
 function showToast(msg, type) {
     var existing = document.querySelector('.toast');
     if(existing) existing.remove();
@@ -513,7 +557,7 @@ function showToast(msg, type) {
     setTimeout(function(){ if(el.parentNode) el.style.opacity='0'; setTimeout(function(){el.remove()},300); }, 2500);
 }
 
-/* === Live traffic simulation === */
+/* === 实时流量模拟 === */
 var trafficSeed = [2.3, 1.1, 0.8, 1.5, 0.4];
 var trafficDomains = ['github.com','api.github.com','raw.githubusercontent.com','avatars.githubusercontent.com','codeload.github.com'];
 
