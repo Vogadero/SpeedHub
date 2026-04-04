@@ -95,6 +95,7 @@ class Program
 
             // Web Dashboard 地址（可点击跳转）
             AnsiConsole.MarkupLine("\n[bold]Web Dashboard:[/] [blue underline]http://localhost:38458[/]");
+            AnsiConsole.MarkupLine("[bold]HTTP Proxy:[/] [blue underline]http://localhost:38457[/]");
             AnsiConsole.MarkupLine("[dim]按 Ctrl+C 停止服务...[/]\n");
 
             await host.RunAsync();
@@ -332,6 +333,10 @@ public class SpeedHubStartup
         }
 
         app.UseRouting();
+
+        // 代理中间件（在 UseRouting 之后、UseCors 之前，确保能正确获取路由信息）
+        // 所有到达 38457 端口的非 API/SignalR 请求都会被拦截并代理转发
+        app.UseMiddleware<SpeedHub.Core.Middleware.ProxyMiddleware>();
 
         app.UseCors();
         app.UseStaticFiles();
