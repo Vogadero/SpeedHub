@@ -201,7 +201,7 @@ public class HttpProxyHandler
     {
         var regexPattern = "^" + Regex.Escape(pattern)
             .Replace(@"\*", ".*")
-            .Replace @"\.", @"\.") + "$";
+            .Replace(@"\.", @"\.") + "$";
 
         return Regex.IsMatch(input, regexPattern, RegexOptions.IgnoreCase);
     }
