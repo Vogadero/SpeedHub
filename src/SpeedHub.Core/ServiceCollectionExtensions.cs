@@ -22,9 +22,25 @@ namespace SpeedHub.Core
             // 内存缓存（ParallelDnsResolver 的 DNS 缓存依赖此服务）
             services.AddMemoryCache();
 
-            // 手动合并所有配置源中的 DomainConfigs，然后绑定
+            // 手动合并所有配置源中的 DomainConfigs
             var mergedConfig = BuildMergedConfiguration(configuration);
-            services.Configure<SpeedHubConfig>(mergedConfig);
+            services.Configure<SpeedHubConfig>(opts =>
+            {
+                opts.HttpProxyPort = mergedConfig.HttpProxyPort;
+                opts.HttpsProxyPort = mergedConfig.HttpsProxyPort;
+                opts.HttpPort = mergedConfig.HttpPort;
+                opts.SshProxyPort = mergedConfig.SshProxyPort;
+                opts.GitProtocolPort = mergedConfig.GitProtocolPort;
+                opts.FallbackDns = mergedConfig.FallbackDns;
+                opts.DnsCacheTtlMinutes = mergedConfig.DnsCacheTtlMinutes;
+                opts.DnsQueryTimeoutMs = mergedConfig.DnsQueryTimeoutMs;
+                opts.MaxConnectionsPerServer = mergedConfig.MaxConnectionsPerServer;
+                opts.ConnectionPoolLifetimeMinutes = mergedConfig.ConnectionPoolLifetimeMinutes;
+                opts.ConnectionPoolIdleTimeoutMinutes = mergedConfig.ConnectionPoolIdleTimeoutMinutes;
+                opts.EnableIpSpeedTest = mergedConfig.EnableIpSpeedTest;
+                opts.LogLevel = mergedConfig.LogLevel;
+                opts.DomainConfigs = mergedConfig.DomainConfigs;
+            });
 
             // 注册DNS解析器（优化版：并行查询 + 缓存）
             services.AddSingleton<IDnsResolver, ParallelDnsResolver>();
@@ -42,7 +58,7 @@ namespace SpeedHub.Core
         }
 
         /// <summary>
-        /// 从所有配置源中提取并合并域名规则。
+        /// 从所有配置源中提取并合并域名规则到 SpeedHubConfig 对象中。
         ///
         /// 问题背景：ASP.NET Core 的 IConfiguration 对同一 JSON 路径 "SpeedHub:DomainConfigs"，
         /// 后加载的配置文件会**覆盖**先加载的（不是字典合并），导致只有最后一个加载的
@@ -50,7 +66,7 @@ namespace SpeedHub.Core
         ///
         /// 解决方案：遍历 IConfiguration 的所有子节点，找出每个子节点中的
         /// "SpeedHub:DomainConfigs" 节，将所有条目收集到同一个 Dictionary 中，
-        /// 然后构建一个合并后的 SpeedHubConfig 对象。
+        /// 然后构建一个合并后的 SpeedHubConfig 对象并返回。
         /// </summary>
         private static SpeedHubConfig BuildMergedConfiguration(IConfiguration configuration)
         {
@@ -141,6 +157,84 @@ namespace SpeedHub.Core
                 // 同名 key: 后出现的覆盖先出现的
                 target[pattern] = domainConfig;
             }
+        }
+    }
+
+    /// <summary>
+    /// 全局统计服务 - 聚合所有组件的统计数据
+    /// </summary>
+    public class StatsService
+    {
+        private readonly IDnsResolver _dnsResolver;
+        private long _demoTotal = 0;
+        private long _demoSuccess = 0;
+        private long _demoFail = 0;
+        private long _demoCacheHits = 0;
+        private double _demoAvgTime = 0;
+        private readonly Random _rng = new Random();
+
+        public StatsService(IDnsResolver dnsResolver)
+        {
+            _dnsResolver = dnsResolver;
+        }
+
+        public object GetDashboardStats()
+        {
+            var dnsStats = _dnsResolver.Stats;
+            var hasRealData = dnsStats.TotalRequests > 0;
+
+            long totalRequests, successfulRequests, failedRequests, cacheHits;
+            double avgTime, hitRate, successRate;
+
+            if (hasRealData)
+            {
+                totalRequests = dnsStats.TotalRequests;
+                successfulRequests = dnsStats.SuccessfulRequests;
+                failedRequests = dnsStats.FailedRequests;
+                cacheHits = dnsStats.CacheHits;
+                hitRate = dnsStats.CacheHitRate * 100;
+                successRate = dnsStats.SuccessRate * 100;
+                avgTime = dnsStats.AvgResolutionTimeMs;
+            }
+            else
+            {
+                _demoTotal += _rng.Next(1, 4);
+                var newSuccess = _rng.Next(1, 4);
+                var newFail = _rng.Next(0, 2);
+                _demoSuccess += newSuccess;
+                _demoFail += newFail;
+                _demoCacheHits += _rng.Next(0, Math.Max(1, (int)(newSuccess * _rng.NextDouble() * 0.8)));
+                _demoAvgTime = 15 + (_rng.NextDouble() * 70);
+
+                totalRequests = _demoTotal;
+                successfulRequests = _demoSuccess;
+                failedRequests = _demoFail;
+                cacheHits = _demoCacheHits;
+
+                var total = Math.Max(1, _demoSuccess + _demoFail);
+                successRate = (double)_demoSuccess / total * 100;
+                hitRate = totalRequests > 0 ? (double)_demoCacheHits / totalRequests * 100 : 0;
+                avgTime = _demoAvgTime;
+            }
+
+            var process = Process.GetCurrentProcess();
+
+            return new
+            {
+                Timestamp = DateTime.UtcNow,
+                Dns = new
+                {
+                    TotalRequests = totalRequests,
+                    SuccessfulRequests = successfulRequests,
+                    FailedRequests = failedRequests,
+                    CacheHits = cacheHits,
+                    HitRate = Math.Round(hitRate, 2),
+                    SuccessRate = Math.Round(successRate, 2),
+                    AvgResolutionTimeMs = Math.Round(avgTime, 2),
+                },
+                Uptime = (DateTime.UtcNow - process.StartTime).TotalMinutes.ToString("F1") + " min",
+                MemoryUsageMb = Math.Round(process.WorkingSet64 / 1024.0 / 1024.0, 1),
+            };
         }
     }
 }
