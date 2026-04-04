@@ -25,7 +25,7 @@ namespace SpeedHub.Cli
                 new FigletText("SpeedHub")
                     .Color(Color.Aqua));
 
-            AnsiConsole.MarkupLine($"[bold][aqua]v3.0-alpha.1[/][/]");
+            AnsiConsole.MarkupLine($"[bold][aqua]v3.0[/][/]");
             AnsiConsole.MarkupLine("[dim]新一代开发者网络加速器[/]\n");
 
             var command = args.Length > 0 ? args[0] : "run";
