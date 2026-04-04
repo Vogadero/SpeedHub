@@ -70,49 +70,47 @@ jobs:
         shell: bash
         run: |
           cd publish/${{ matrix.runtime }}
-          
+
           if [[ "${{ matrix.artifact }}" == *.tar.gz ]]; then
-            tar -czvf ../../../${{ matrix.artifact }} .
+            tar -czvf "../../${{ matrix.artifact }}" .
           else
-            zip -r ../../../${{ matrix.artifact }} .
+            zip -r "../../${{ matrix.artifact }}" .
           fi
           cd -
       
-      - name: Upload Release Asset
+      # 上传到 GitHub Actions Artifact（不是 Release Asset）
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.runtime }}
+          path: ${{ matrix.artifact }}
+          retention-days: 1
+          if-no-files-found: error
+
+  # 单独的 release job：下载所有 artifact → 统一上传到 Release（避免并发冲突）
+  release:
+    name: Create Release & Upload Assets
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      # 下载所有平台的构建产物
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: '*'
+          merge-multiple: false
+      
+      # 列出下载的文件（调试用）
+      - name: List downloaded files
+        run: find artifacts -type f -name '*.zip' -o -name '*.tar.gz' | sort
+      
+      # 创建 Release 并上传所有资产（单次操作，避免并发冲突）
+      - name: Create Release & Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.artifact }}
+          files: artifacts/*/*
           generate_release_notes: true
-
-  # TODO: Docker 需要配置 Docker Hub 或 GitHub Pro 才能推送
-  # 当前 Free plan 不允许创建 organization package (ghcr.io/vogadero/*)
-  # docker:
-  #   name: Docker Image
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #
-  #     - name: Set up QEMU
-  #       uses: docker/setup-qemu-action@v3
-  #
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
-  #
-  #     - name: Login to GitHub Container Registry
-  #       uses: docker/login-action@v3
-  #       with:
-  #         registry: ghcr.io
-  #         username: ${{ github.actor }}
-  #         password: ${{ secrets.GITHUB_TOKEN }}
-  #
-  #     - name: Build and Push
-  #       uses: docker/build-push-action@v5
-  #       with:
-  #         context: .
-  #         push: true
-  #         tags: |
-  #           ghcr.io/vogadero/speedhub:latest
-  #           ghcr.io/vogadero/speedhub:${{ github.ref_name }}
-  #         platforms: linux/amd64,linux/arm64
