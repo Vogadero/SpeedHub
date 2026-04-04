@@ -98,6 +98,17 @@ namespace SpeedHub.Cli
                 AnsiConsole.MarkupLine("[bold]HTTP Proxy:[/] [blue underline]http://localhost:38457[/]");
                 AnsiConsole.MarkupLine("[dim]按 Ctrl+C 停止服务...[/]\n");
 
+                // 自动打开浏览器跳转到 Dashboard
+                OpenBrowser("http://localhost:38458");
+                AnsiConsole.MarkupLine("[dim]=> 已自动打开浏览器访问 Dashboard[/]\n");
+
+                // 异步检查最新版本（不阻塞主流程）
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(2000); // 等待 2 秒再检查，避免影响启动速度
+                    await VersionChecker.CheckForUpdatesAsync();
+                });
+
                 await host.RunAsync();
                 return 0;
             }
@@ -231,6 +242,26 @@ namespace SpeedHub.Cli
         }
 
         /// <summary>
+        /// 在默认浏览器中打开指定 URL
+        /// </summary>
+        public static void OpenBrowser(string url)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch
+            {
+                // 忽略打开浏览器失败（某些环境可能不支持）
+            }
+        }
+
+        /// <summary>
         /// 创建 Host Builder（集成 Web Dashboard + 代理核心）
         /// 
         /// 注意：Kestrel 只监听内部端口 5000（用于 HTTP 代理请求转发和 Dashboard）。
@@ -241,7 +272,6 @@ namespace SpeedHub.Cli
             return Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.UseUrls("http://localhost:5000"); // Kestrel 内部端口
                     webBuilder.UseStartup<SpeedHubStartup>();
                 })
                 .ConfigureAppConfiguration((context, config) =>

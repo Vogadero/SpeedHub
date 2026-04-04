@@ -181,20 +181,27 @@ namespace SpeedHub.Core.Proxy
 
                 _logger.LogInformation("[{ReqId}] 开始双向原始字节中继（TLS 模式）...", requestId);
 
+                long bytesReceived = 0, bytesSent = 0;
                 // 浏览器 -> 目标服务器
-                var clientToTarget = RawRelayAsync(networkStream, targetStream, "C->T", requestId, CancellationToken.None);
+                var clientToTarget = RawRelayAsync(networkStream, targetStream, "C->T", requestId, CancellationToken.None,
+                    bytes => Interlocked.Add(ref bytesReceived, bytes));
 
                 // 目标服务器 -> 浏览器
-                var targetToClient = RawRelayAsync(targetStream, networkStream, "T->C", requestId, CancellationToken.None);
+                var targetToClient = RawRelayAsync(targetStream, networkStream, "T->C", requestId, CancellationToken.None,
+                    bytes => Interlocked.Add(ref bytesSent, bytes));
 
                 // 等待任一方向结束
                 await Task.WhenAny(clientToTarget, targetToClient);
 
+                // 累加到全局统计
+                Interlocked.Add(ref Stats._bytesReceived, bytesReceived);
+                Interlocked.Add(ref Stats._bytesSent, bytesSent);
+
                 sw.Stop();
                 Interlocked.Increment(ref Stats._successfulRequests);
                 _logger.LogInformation(
-                    "[{ReqId}] CONNECT 隧道正常关闭, 耗时 {Elapsed:F2}ms",
-                    requestId, sw.Elapsed.TotalMilliseconds);
+                    "[{ReqId}] CONNECT 隧道正常关闭, 耗时 {Elapsed:F2}ms, 上行 {Up} 字节, 下行 {Down} 字节",
+                    requestId, sw.Elapsed.TotalMilliseconds, bytesReceived, bytesSent);
             }
             catch (OperationCanceledException)
             {
@@ -348,19 +355,26 @@ namespace SpeedHub.Core.Proxy
             try
             {
                 // 浏览器 -> 目标服务器（TLS ClientHello + 加密数据）
-                var clientToTarget = RawRelayAsync(rawInputStream, targetStream, "C->T", requestId, context.RequestAborted);
+                long bytesReceived = 0, bytesSent = 0;
+                var clientToTarget = RawRelayAsync(rawInputStream, targetStream, "C->T", requestId, context.RequestAborted,
+                    bytes => Interlocked.Add(ref bytesReceived, bytes));
 
                 // 目标服务器 -> 浏览器（TLS ServerHello + 加密数据）
-                var targetToClient = RawRelayAsync(targetStream, rawOutputStream, "T->C", requestId, context.RequestAborted);
+                var targetToClient = RawRelayAsync(targetStream, rawOutputStream, "T->C", requestId, context.RequestAborted,
+                    bytes => Interlocked.Add(ref bytesSent, bytes));
 
                 // 等待任一方向结束
                 await Task.WhenAny(clientToTarget, targetToClient);
 
+                // 累加到全局统计
+                Interlocked.Add(ref Stats._bytesReceived, bytesReceived);
+                Interlocked.Add(ref Stats._bytesSent, bytesSent);
+
                 sw.Stop();
                 Interlocked.Increment(ref Stats._successfulRequests);
                 _logger.LogInformation(
-                    "[{ReqId}] CONNECT 隧道正常关闭, 耗时 {Elapsed:F2}ms",
-                    requestId, sw.Elapsed.TotalMilliseconds);
+                    "[{ReqId}] CONNECT 隧道正常关闭, 耗时 {Elapsed:F2}ms, 上行 {Up} 字节, 下行 {Down} 字节",
+                    requestId, sw.Elapsed.TotalMilliseconds, bytesReceived, bytesSent);
             }
             catch (OperationCanceledException)
             {
@@ -403,7 +417,7 @@ namespace SpeedHub.Core.Proxy
         /// 与 CopyStreamAsync 不同，这个方法不做任何数据处理，
         /// 纯粹是 byte-in-byte-out 的透明转发，确保 TLS 数据不被修改
         /// </summary>
-        private async Task RawRelayAsync(Stream source, Stream dest, string direction, string requestId, CancellationToken cancellationToken)
+        private async Task RawRelayAsync(Stream source, Stream dest, string direction, string requestId, CancellationToken cancellationToken, Action<long>? onBytesTransferred = null)
         {
             var buffer = new byte[8192];
             int totalBytes = 0;
@@ -418,6 +432,12 @@ namespace SpeedHub.Core.Proxy
                     packetCount++;
                     await dest.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
                     await dest.FlushAsync(cancellationToken);
+                }
+
+                // 统计流量
+                if (totalBytes > 0)
+                {
+                    onBytesTransferred?.Invoke(totalBytes);
                 }
 
                 // 中继完成日志（只在有数据传输时记录）
@@ -611,9 +631,6 @@ namespace SpeedHub.Core.Proxy
             var currentAvg = Stats.AvgResponseTimeMs;
             var total = Math.Max(1, Stats.TotalRequests);
             Stats.AvgResponseTimeMs = currentAvg + ((elapsedMs - currentAvg) / total);
-
-            // 更新带宽统计
-            Stats.TotalBytesTransferred += 1024;
         }
     }
 
@@ -650,6 +667,8 @@ namespace SpeedHub.Core.Proxy
         internal long _failedRequests;
         internal long _dnsErrors;
         internal long _errors;
+        internal long _bytesReceived;
+        internal long _bytesSent;
 
         public long TotalRequests => _totalRequests;
         public long SuccessfulRequests => _successfulRequests;
@@ -658,6 +677,8 @@ namespace SpeedHub.Core.Proxy
         public long Errors => _errors;
         public double AvgResponseTimeMs { get; set; }
         public long TotalBytesTransferred { get; set; }
+        public long BytesReceived => _bytesReceived;
+        public long BytesSent => _bytesSent;
 
         public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests : 0;
     }

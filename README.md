@@ -8,11 +8,10 @@
   <em>Accelerate Your Code — 让 GitHub、Google Fonts 等服务访问飞起来</em>
 </p>
 
-
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/version-v3.0--alpha-orange" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-v3.0-orange" alt="Version"/>
 </p>
 
 ---
@@ -119,9 +118,11 @@ docker run -d \
 启动后访问 **http://localhost:38458** 即可看到实时监控面板，包含：
 
 - **DNS 解析统计** — 总请求数、成功/失败、缓存命中率、平均耗时
+- **代理流量统计** — 真实的上下行流量统计（非模拟数据），实时反映网络使用情况
 - **域名规则管理** — 当前生效的 TLS SNI、CDN 替换等规则列表
 - **实时流量监控** — 各域名的流量带宽，2 秒自动刷新
 - **系统状态** — 运行时间、内存占用、连接状态（SignalR 实时推送）
+- **日夜主题切换** — 点击右上角主题按钮，支持白天/夜间两种视觉模式
 
 ![Dashboard Preview](docs/dashboard-preview.png)
 

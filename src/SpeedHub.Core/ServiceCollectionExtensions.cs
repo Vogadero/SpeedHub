@@ -203,19 +203,20 @@ namespace SpeedHub.Core
         public object GetDashboardStats()
         {
             var dnsStats = _dnsResolver.Stats;
-            var hasRealData = dnsStats.TotalRequests > 0;
+            var proxyStats = Proxy.HttpProxyHandler.Stats;
+            var hasRealData = dnsStats.TotalRequests > 0 || proxyStats.TotalRequests > 0;
 
             long totalRequests, successfulRequests, failedRequests, cacheHits;
             double avgTime, hitRate, successRate;
 
             if (hasRealData)
             {
-                totalRequests = dnsStats.TotalRequests;
-                successfulRequests = dnsStats.SuccessfulRequests;
-                failedRequests = dnsStats.FailedRequests;
+                totalRequests = dnsStats.TotalRequests + proxyStats.TotalRequests;
+                successfulRequests = dnsStats.SuccessfulRequests + proxyStats.SuccessfulRequests;
+                failedRequests = dnsStats.FailedRequests + proxyStats.FailedRequests;
                 cacheHits = dnsStats.CacheHits;
                 hitRate = dnsStats.CacheHitRate * 100;
-                successRate = dnsStats.SuccessRate * 100;
+                successRate = totalRequests > 0 ? (double)successfulRequests / totalRequests * 100 : 0;
                 avgTime = dnsStats.AvgResolutionTimeMs;
             }
             else
@@ -240,6 +241,8 @@ namespace SpeedHub.Core
             }
 
             var process = Process.GetCurrentProcess();
+            var bytesReceived = proxyStats.BytesReceived;
+            var bytesSent = proxyStats.BytesSent;
 
             return new
             {
@@ -253,6 +256,15 @@ namespace SpeedHub.Core
                     HitRate = Math.Round(hitRate, 2),
                     SuccessRate = Math.Round(successRate, 2),
                     AvgResolutionTimeMs = Math.Round(avgTime, 2),
+                },
+                Proxy = new
+                {
+                    TotalRequests = proxyStats.TotalRequests,
+                    SuccessfulRequests = proxyStats.SuccessfulRequests,
+                    FailedRequests = proxyStats.FailedRequests,
+                    BytesReceived = bytesReceived,
+                    BytesSent = bytesSent,
+                    AvgResponseTimeMs = Math.Round(proxyStats.AvgResponseTimeMs, 2),
                 },
                 Uptime = (DateTime.UtcNow - process.StartTime).TotalMinutes.ToString("F1") + " min",
                 MemoryUsageMb = Math.Round(process.WorkingSet64 / 1024.0 / 1024.0, 1),

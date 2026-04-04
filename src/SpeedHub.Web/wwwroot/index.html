@@ -25,6 +25,25 @@
             --r: 10px;
         }
 
+        /* 白天模式 */
+        :root.light-mode {
+            --primary: #0891b2;
+            --primary-dim: rgba(8, 145, 178, 0.10);
+            --accent: #ea580c;
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --surface-2: #f8fafc;
+            --text: #0f172a;
+            --text-2: #475569;
+            --text-3: #94a3b8;
+            --line: rgba(0,0,0,.06);
+            --border: #e2e8f0;
+            --ok: #059669;
+            --warn: #d97706;
+            --err: #dc2626;
+            --info: #2563eb;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -73,6 +92,26 @@
         .conn.err .dot    { background: var(--err); box-shadow: 0 0 5px var(--err); }
         .conn.warn .dot   { background: var(--warn); box-shadow: 0 0 5px var(--warn); }
         @keyframes blink { 50% { opacity: .4; } }
+
+        /* 主题切换按钮 */
+        .theme-btn {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: var(--text-2);
+            transition: all .2s;
+        }
+        .theme-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-dim);
+        }
+        .theme-icon {
+            width: 16px; height: 16px;
+        }
 
         /* ===== Layout ===== */
         main { max-width: 1100px; margin: 0 auto; padding: 24px 24px 48px; }
@@ -241,7 +280,30 @@
 
         .pad { padding: 16px 20px; }
 
-        /* Traffic bars */
+        /* Traffic summary */
+        .traffic-summary { display: flex; flex-direction: column; gap: 12px; }
+        .traffic-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            border: 1px solid var(--line);
+        }
+        .traffic-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 12.5px; color: var(--text-2); font-weight: 500;
+        }
+        .traffic-label svg {
+            width: 16px; height: 16px;
+            stroke: var(--primary);
+        }
+        .traffic-value {
+            font-size: 14px; font-weight: 700;
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+            color: var(--text);
+        }
+
+        /* Legacy traffic bars (保留兼容) */
         .t-list { list-style:none; }
         .t-item {
             display:flex; align-items:center; gap:14px;
@@ -319,7 +381,15 @@
         <div class="brand-mark">S</div>
         SpeedHub<span class="brand-ver">v3.0</span>
     </a>
-    <div class="conn busy" id="st"><span class="dot"></span><span id="stT">连接中...</span></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+        <button id="themeToggle" class="theme-btn" title="切换主题">
+            <svg class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+        </button>
+        <div class="conn busy" id="st"><span class="dot"></span><span id="stT">连接中...</span></div>
+    </div>
 </header>
 
 <!-- 使用指南横幅 -->
@@ -427,16 +497,32 @@
                 <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 实时流量
             </div>
-            <span class="sub"><span class="demo-badge">模拟数据</span> &nbsp; 2秒刷新</span>
+            <span class="sub" id="trafficRefresh">2秒刷新</span>
         </div>
         <div class="pad" id="tp">
-            <ul class="t-list">
-                <li class="t-item"><span class="t-dom">github.com</span><div class="t-bar"><div class="t-fill" style="width:72%"><span>2.3 MB/s</span></div></div></li>
-                <li class="t-item"><span class="t-dom">api.github.com</span><div class="t-bar"><div class="t-fill warn" style="width:45%"><span>1.1 MB/s</span></div></div></li>
-                <li class="t-item"><span class="t-dom">raw.githubusercontent.com</span><div class="t-bar"><div class="t-fill" style="width:30%"><span>0.8 MB/s</span></div></div></li>
-                <li class="t-item"><span class="t-dom">avatars.githubusercontent.com</span><div class="t-bar"><div class="t-fill warn" style="width:55%"><span>1.5 MB/s</span></div></div></li>
-                <li class="t-item"><span class="t-dom">codeload.github.com</span><div class="t-bar"><div class="t-fill" style="width:20%"><span>0.4 MB/s</span></div></div></li>
-            </ul>
+            <div class="traffic-summary">
+                <div class="traffic-item">
+                    <span class="traffic-label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                        上行
+                    </span>
+                    <span class="traffic-value" id="bytesSent">0 B</span>
+                </div>
+                <div class="traffic-item">
+                    <span class="traffic-label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                        下行
+                    </span>
+                    <span class="traffic-value" id="bytesReceived">0 B</span>
+                </div>
+                <div class="traffic-item">
+                    <span class="traffic-label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/></svg>
+                        总计
+                    </span>
+                    <span class="traffic-value" id="trafficTotal">0 B</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -472,6 +558,7 @@ function setSt(s) {
 /* 接收统计数据 */
 conn.on('ReceiveStats',function(d){
     var dns = d.dns || {};
+    var proxy = d.proxy || {};
 
     // 顶部统计卡片
     document.getElementById('dnsTotal').textContent = (dns.totalRequests || 0).toLocaleString();
@@ -489,8 +576,8 @@ conn.on('ReceiveStats',function(d){
     document.getElementById('pDnsFail').textContent = failVal;
     document.getElementById('pDnsHitRate').textContent = (dns.hitRate || 0).toFixed(1);
 
-    // 流量模拟
-    updateTraffic(dns);
+    // 真实流量统计
+    updateTraffic(proxy);
 });
 
 /* 启动连接 */
@@ -563,28 +650,60 @@ function showToast(msg, type) {
     setTimeout(function(){ if(el.parentNode) el.style.opacity='0'; setTimeout(function(){el.remove()},300); }, 2500);
 }
 
-/* === 实时流量模拟 === */
-var trafficSeed = [2.3, 1.1, 0.8, 1.5, 0.4];
-var trafficDomains = ['github.com','api.github.com','raw.githubusercontent.com','avatars.githubusercontent.com','codeload.github.com'];
-
-function updateTraffic(dns){
-    var tp = document.getElementById('tp');
-    if(!tp) return;
-
-    var html = '';
-    for(var i = 0; i < trafficDomains.length; i++){
-        var base = trafficSeed[i];
-        var variance = (Math.random() - 0.5) * 0.6;
-        var val = Math.max(0.05, base + variance).toFixed(1);
-        var pct = Math.min(95, Math.max(8, parseFloat(val) / 3 * 100));
-        var warnClass = (parseFloat(val) > 1.4 && i !== 0) ? 'warn' : '';
-
-        html += '<li class="t-item">'+
-            '<span class="t-dom">'+trafficDomains[i]+'</span>'+
-            '<div class="t-bar"><div class="t-fill '+warnClass+'" style="width:'+pct+'%"><span>'+val+' MB/s</span></div></div></li>';
-    }
-    tp.innerHTML = '<ul class="t-list">'+html+'</ul>';
+/* === 真实流量统计 === */
+function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    var k = 1024;
+    var sizes = ['B', 'KB', 'MB', 'GB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(i > 0 ? 2 : 0) + ' ' + sizes[i];
 }
+
+function updateTraffic(proxy) {
+    var bytesSent = proxy.bytesSent || 0;
+    var bytesReceived = proxy.bytesReceived || 0;
+    var total = bytesSent + bytesReceived;
+
+    var sentEl = document.getElementById('bytesSent');
+    var recvEl = document.getElementById('bytesReceived');
+    var totalEl = document.getElementById('trafficTotal');
+
+    if (sentEl) sentEl.textContent = formatBytes(bytesSent);
+    if (recvEl) recvEl.textContent = formatBytes(bytesReceived);
+    if (totalEl) totalEl.textContent = formatBytes(total);
+}
+
+/* === 主题切换 === */
+(function() {
+    var themeBtn = document.getElementById('themeToggle');
+    if (!themeBtn) return;
+
+    var root = document.documentElement;
+    var iconSvg = themeBtn.querySelector('.theme-icon');
+
+    // 从 localStorage 读取主题
+    var savedTheme = localStorage.getItem('speedhub-theme');
+    if (savedTheme === 'light') {
+        root.classList.add('light-mode');
+        updateIcon(true);
+    }
+
+    themeBtn.addEventListener('click', function() {
+        var isLight = root.classList.toggle('light-mode');
+        localStorage.setItem('speedhub-theme', isLight ? 'light' : 'dark');
+        updateIcon(isLight);
+    });
+
+    function updateIcon(isLight) {
+        if (isLight) {
+            // 月亮图标（切换到夜间）
+            iconSvg.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+        } else {
+            // 太阳图标（切换到白天）
+            iconSvg.innerHTML = '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>';
+        }
+    }
+})();
 </script>
 
 </body>

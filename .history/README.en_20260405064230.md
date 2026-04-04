@@ -8,11 +8,13 @@
   <em>Accelerate Your Code — Blazing-fast access to GitHub, Google Fonts & more</em>
 </p>
 
+
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/version-v3.0-orange" alt="Version"/>
 </p>
+
 
 ---
 
