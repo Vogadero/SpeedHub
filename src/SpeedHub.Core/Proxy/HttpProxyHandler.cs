@@ -97,6 +97,120 @@ namespace SpeedHub.Core.Proxy
         }
 
         /// <summary>
+        /// 处理 CONNECT 隧道（通过原始 Socket）- 由 ProxyMiddleware 直接调用
+        /// 
+        /// 这个方法直接从底层 Socket 读取/写入原始 TCP 字节流，
+        /// 完全绕过 Kestrel 的 HTTP 抽象层。
+        /// </summary>
+        public async Task HandleConnectTunnelWithSocketAsync(Socket clientSocket, string targetDomain)
+        {
+            var sw = Stopwatch.StartNew();
+            var requestId = Guid.NewGuid().ToString("N")[..8];
+            var networkStream = new NetworkStream(clientSocket, ownsSocket: false);
+
+            try
+            {
+                // 解析端口 (默认 443)
+                int port = 443;
+                var colonIndex = targetDomain.LastIndexOf(':');
+                if (colonIndex > 0)
+                {
+                    int.TryParse(targetDomain.Substring(colonIndex + 1), out port);
+                    targetDomain = targetDomain.Substring(0, colonIndex);
+                }
+
+                _logger.LogInformation("[{ReqId}] CONNECT 隧道 (Socket模式) -> {Target}:{Port}", requestId, targetDomain, port);
+
+                // 获取域名配置
+                var domainConfig = GetDomainConfig(targetDomain);
+
+                // DNS 解析
+                IReadOnlyList<IPAddress> ips;
+                if (domainConfig?.IPAddress != null)
+                {
+                    ips = new[] { domainConfig.IPAddress };
+                    _logger.LogInformation("[{ReqId}] 使用静态 IP: {Ip}", requestId, ips[0]);
+                }
+                else
+                {
+                    _logger.LogInformation("[{ReqId}] 正在解析 DNS: {Domain}:{Port}", requestId, targetDomain, port);
+                    ips = await _dnsResolver.ResolveAsync(targetDomain, port);
+                    _logger.LogInformation("[{ReqId}] DNS 解析结果: {@Ips}", requestId, ips.Select(ip => ip.ToString()));
+                }
+
+                if (ips.Count == 0)
+                {
+                    _logger.LogError("[{ReqId}] DNS 解析失败: {Domain}", requestId, targetDomain);
+                    var errorMsg = System.Text.Encoding.UTF8.GetBytes("HTTP/1.1 502 Bad Gateway\r\n\r\nDNS 解析失败");
+                    await networkStream.WriteAsync(errorMsg);
+                    return;
+                }
+
+                var targetIp = ips[0];
+
+                // 建立到目标的 TCP 连接
+                using var targetClient = new TcpClient();
+                var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+
+                try
+                {
+                    _logger.LogInformation("[{ReqId}] 正在连接 {TargetIp}:{Port}...", requestId, targetIp, port);
+                    await targetClient.ConnectAsync(targetIp, port, connectCts.Token);
+                    _logger.LogInformation("[{ReqId}] TCP 连接成功: {TargetIp}:{Port}", requestId, targetIp, port);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[{ReqId}] 无法连接到目标 {TargetIp}:{Port}", requestId, targetIp, port);
+                    var errorMsg = System.Text.Encoding.UTF8.GetBytes("HTTP/1.1 502 Bad Gateway\r\n\r\n无法连接到目标服务器");
+                    await networkStream.WriteAsync(errorMsg);
+                    return;
+                }
+
+                // 发送 200 Connection Established
+                var responseBytes = System.Text.Encoding.UTF8.GetBytes(
+                    "HTTP/1.1 200 Connection Established\r\n" +
+                    "Connection: keep-alive\r\n" +
+                    "\r\n");
+                await networkStream.WriteAsync(responseBytes);
+                await networkStream.FlushAsync();
+
+                _logger.LogInformation("[{ReqId}] 已发送 200 Connection Established", requestId);
+
+                // 双向原始字节中继
+                var targetStream = targetClient.GetStream();
+
+                _logger.LogInformation("[{ReqId}] 开始双向原始字节中继（TLS 模式）...", requestId);
+
+                // 浏览器 -> 目标服务器
+                var clientToTarget = RawRelayAsync(networkStream, targetStream, "C->T", requestId, CancellationToken.None);
+
+                // 目标服务器 -> 浏览器
+                var targetToClient = RawRelayAsync(targetStream, networkStream, "T->C", requestId, CancellationToken.None);
+
+                // 等待任一方向结束
+                await Task.WhenAny(clientToTarget, targetToClient);
+
+                sw.Stop();
+                Interlocked.Increment(ref Stats._successfulRequests);
+                _logger.LogInformation(
+                    "[{ReqId}] CONNECT 隧道正常关闭, 耗时 {Elapsed:F2}ms",
+                    requestId, sw.Elapsed.TotalMilliseconds);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("[{ReqId}] CONNECT 隧道被取消 (客户端断开)", requestId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[{ReqId}] CONNECT 隧道异常", requestId);
+            }
+            finally
+            {
+                RecordRequestStats(sw.ElapsedMilliseconds, 200);
+            }
+        }
+
+        /// <summary>
         /// 处理 HTTP/HTTPS CONNECT 隧道（用于 HTTPS 站点）
         /// 
         /// 浏览器发送: CONNECT github.com:443 HTTP/1.1
