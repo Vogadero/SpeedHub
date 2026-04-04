@@ -278,6 +278,11 @@ namespace SpeedHub.Cli
         {
             services.AddSpeedHubCore(Configuration);
 
+            // 注册 SignalR 统计推送服务（定时向 Dashboard 推送实时数据，每2秒）
+            // ⚠️ 这是前端自动刷新的关键 - 没有这行 Timer 不会启动
+            // 放在 Cli 而非 Core 中，因为 StatsPushService 属于 Web 层
+            services.AddHostedService<SpeedHub.Web.Hubs.StatsPushService>();
+
             services.AddSignalR(options =>
             {
                 options.KeepAliveInterval = TimeSpan.FromSeconds(10);

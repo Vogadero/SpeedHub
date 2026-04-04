@@ -341,11 +341,11 @@ namespace SpeedHub.Core.Proxy
         private async Task HandleCdnRedirectAsync(HttpContext context, DomainConfig domainConfig, string requestId)
         {
             var destinationBase = domainConfig!.Destination!.ToString().TrimEnd('/');
-            var requestPath = context.Request.Path + context.QueryString;
+            var requestPath = context.Request.Path + context.Request.QueryString;
             var redirectUrl = destinationBase + requestPath;
 
             _logger.LogInformation("[{ReqId}] CDN重定向: {Original} -> {Destination}",
-                requestId, context.Host, redirectUrl);
+                requestId, context.Request.Host, redirectUrl);
 
             context.Response.Redirect(redirectUrl, permanent: false);
         }

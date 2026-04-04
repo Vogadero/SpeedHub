@@ -57,9 +57,8 @@ namespace SpeedHub.Core
             // 注册统计服务
             services.AddSingleton<StatsService>();
 
-            // 注册 SignalR 统计推送服务（定时向 Dashboard 推送实时数据，每2秒）
-            // ⚠️ 这是前端自动刷新的关键 - 没有这行 Timer 不会启动
-            services.AddHostedService<SpeedHub.Web.Hubs.StatsPushService>();
+            // 注意: StatsPushService (SignalR 定时推送) 在 Cli/Program.cs 中注册
+            // 因为它属于 Web 层，Core 项目不引用 SpeedHub.Web 以避免循环依赖
 
             return services;
         }
