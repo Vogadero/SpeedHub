@@ -49,7 +49,30 @@ namespace SpeedHub.Core.Middleware
             // 策略 1: 检查 Proxy-Connection 头（HTTP 代理请求的标志性头）
             bool isProxyRequest = !string.IsNullOrEmpty(request.Headers["Proxy-Connection"]);
 
-            // 策略 2: 从 X-Original-URL 头解析目标
+            // 策略 2: 从 Host 头推断目标域名（最常见情况）
+            if (!isProxyRequest)
+            {
+                var host = request.Headers["Host"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(host))
+                {
+                    // 移除端口号（如果有）
+                    var colonIndex = host.IndexOf(':');
+                    if (colonIndex > 0)
+                    {
+                        host = host.Substring(0, colonIndex);
+                    }
+                    
+                    // 如果 Host 不是本地地址，说明是代理请求
+                    if (!IsLocalAddress(host))
+                    {
+                        targetDomain = host;
+                        isProxyRequest = true;
+                        _logger.LogInformation("[PROXY] HTTP 代理目标 (from Host): {Target}", targetDomain);
+                    }
+                }
+            }
+
+            // 策略 3: 从 X-Original-URL 头解析目标
             if (!isProxyRequest)
             {
                 var rawUrl = request.Headers["X-Original-URL"].FirstOrDefault();
