@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -176,11 +177,10 @@ namespace SpeedHub.Core.Proxy
             _logger.LogInformation("[{ReqId}] 已发送 200 Connection Established", requestId);
 
             // 获取底层流
-            var clientStream = context.Request.BodyWriter.AsStream();
+            var clientStream = context.Request.Body;
             var responseStream = context.Response.Body;
             
-            // 使用 StreamPipeWriter 包装 Response.Body 以支持异步写入
-            // 实际上对于 CONNECT，我们需要做双向数据拷贝
+            // 双向数据中继
             var targetStream = targetClient.GetStream();
 
             // 开始双向数据中继

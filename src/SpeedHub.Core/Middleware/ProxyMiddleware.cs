@@ -48,24 +48,24 @@ namespace SpeedHub.Core.Middleware
                 // ========== HTTPS CONNECT 隧道请求 ==========
                 // 浏览器发送格式: CONNECT github.com:443 HTTP/1.1
                 //
-                // ASP.NET Core Kestrel 对 CONNECT 的处理：
-                // - 在 HTTP/1.1 中，目标通常在 request.Path 或 request.Target 中
-                // - Kestrel 可能将 "github.com:443" 放入 Path（去掉前导 /）
+                // Kestrel 对 HTTP/1.1 CONNECT 的行为：
+                // - 目标地址通常出现在 Path 中 (如 /github.com:443)
+                // - 也可能在 Host 头中
                 //
                 // 多策略提取目标域名：
 
-                // 策略 1: 从 Path 提取 (Kestrel 常见行为)
+                // 策略 1: 从 Path 提取 (Kestrel 将 CONNECT 目标放在 Path 中)
                 var connectTarget = request.Path.Value?.Trim('/');
-                _logger.LogInformation("[PROXY] CONNECT 请求 detected, Path='{Path}', RawTarget='{RawTarget}'",
-                    request.Path.Value, request.Target);
+                _logger.LogInformation("[PROXY] CONNECT 请求 detected, Path='{Path}'",
+                    request.Path.Value);
 
-                if (!string.IsNullOrEmpty(connectTarget) && connectTarget != "")
+                if (!string.IsNullOrEmpty(connectTarget) && connectTarget != "" && !connectTarget.StartsWith("/"))
                 {
                     targetDomain = connectTarget;
                     _logger.LogInformation("[PROXY] CONNECT 隧道目标 (from Path): {Target}", targetDomain);
                 }
 
-                // 策略 2: 从 :authority 头提取
+                // 策略 2: 从 Host/:authority 头提取
                 if (string.IsNullOrEmpty(targetDomain))
                 {
                     var authority = request.Headers["Host"].FirstOrDefault()
@@ -77,30 +77,20 @@ namespace SpeedHub.Core.Middleware
                         _logger.LogInformation("[PROXY] CONNECT 隧道目标 (from Host/:authority): {Target}", targetDomain);
                     }
                 }
-
-                // 策略 3: 直接从 request.Target 提取（原始请求行）
-                if (string.IsNullOrEmpty(targetDomain)
-                    && !string.IsNullOrEmpty(request.Target)
-                    && request.Target != "*")
-                {
-                    targetDomain = request.Target;
-                    _logger.LogInformation("[PROXY] CONNECT 隧道目标 (from Target): {Target}", targetDomain);
-                }
             }
             else
             {
                 // ========== 普通 HTTP 代理请求 ==========
                 // 浏览器发送格式: GET http://github.com/path HTTP/1.1
 
-                // 策略 1: 检查 Proxy-Connection 头（这是 HTTP 代理请求的标志性头）
+                // 策略 1: 检查 Proxy-Connection 头（HTTP 代理请求的标志性头）
                 bool isProxyRequest = !string.IsNullOrEmpty(request.Headers["Proxy-Connection"]);
 
-                // 策略 2: 从完整 URL 解析目标（标准 HTTP 代理方式）
+                // 策略 2: 从 X-Original-URL 头解析目标
                 if (!isProxyRequest)
                 {
-                    // 尝试从 X-Original-URL 或重建 URL 获取目标
                     var rawUrl = request.Headers["X-Original-URL"].FirstOrDefault();
-                    if (Uri.TryCreate(rawUrl ?? "", UriKind.Absolute, out var proxyUri))
+                    if (!string.IsNullOrEmpty(rawUrl) && Uri.TryCreate(rawUrl, UriKind.Absolute, out var proxyUri))
                     {
                         targetDomain = proxyUri.Host;
                         isProxyRequest = true;
@@ -108,22 +98,10 @@ namespace SpeedHub.Core.Middleware
                     }
                 }
 
-                // 策略 3: 如果 URL 是绝对路径格式 (http://host/path)，从 Request URI 提取
-                if (!isProxyRequest && Uri.TryCreate(request.Path.ToString(), UriKind.Absolute, out var absUri))
-                {
-                    // 如果 scheme 不是 http/https，说明这不是一个绝对 URL
-                    if (absUri.Scheme == "http" || absUri.Scheme == "https")
-                    {
-                        targetDomain = absUri.Host;
-                        isProxyRequest = true;
-                        _logger.LogInformation("[PROXY] HTTP 代理目标 (absolute URI): {Target}", targetDomain);
-                    }
-                }
-
-                // 如果不是代理请求，放行给后续中间件
+                // 如果不是代理请求，放行
                 if (!isProxyRequest || string.IsNullOrEmpty(targetDomain))
                 {
-                    _logger.LogDebug("[PROXY] 非代理请求，放行: {Method} {Path}", request.Method, request.Path);
+                    _logger.LogInformation("[PROXY] 非代理请求，放行: {Method} {Path}", request.Method, request.Path);
                     await _next(context);
                     return;
                 }
