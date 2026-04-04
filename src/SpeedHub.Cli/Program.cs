@@ -1,8 +1,12 @@
+using System.IO;
 using Spectre.Console;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace SpeedHub.Cli;
 
@@ -28,10 +32,18 @@ class Program
             "run" => await RunAsync(),
             "start" => await InstallServiceAsync(),
             "stop" => await UninstallServiceAsync(),
-            "--help" => ShowHelp(),
-            "-h" => ShowHelp(),
-            _ => { ShowHelp(); return 1; }
+            "--help" or "-h" => ShowHelp(),
+            _ => RunAndShowHelp()
         };
+    }
+
+    /// <summary>
+    /// 显示帮助并返回错误码（用于 switch expression 的默认分支）
+    /// </summary>
+    private static int RunAndShowHelp()
+    {
+        ShowHelp();
+        return 1;
     }
 
     /// <summary>
@@ -51,20 +63,20 @@ class Program
                 {
                     ctx.Status = "初始化 DNS 解析器...";
                     Thread.Sleep(300);
-                    
+
                     ctx.Status = "加载域名配置...";
                     Thread.Sleep(200);
-                    
+
                     ctx.Status = "启动代理服务器...";
                 });
 
             AnsiConsole.MarkupLine("[green bold]✓[/] SpeedHub 启动成功！\n");
-            
+
             // 显示状态面板
             PrintStatusPanel();
-            
+
             AnsiConsole.MarkupLine("\n[dim]按 Ctrl+C 停止服务...[/]\n");
-            
+
             await hostBuilder.RunConsoleAsync();
             return 0;
         }
@@ -90,7 +102,7 @@ class Program
             AnsiConsole.MarkupLine("[yellow]正在安装 systemd 服务...[/]");
             // TODO: 实现systemd服务安装
         }
-        
+
         AnsiConsole.MarkupLine("[green bold]✓[/] [green]服务安装完成[/]");
         return 0;
     }
@@ -162,7 +174,7 @@ class Program
             new Markup("[aqua]HTTP/HTTPS 代理[/]"),
             new Text(":38457"),
             new Markup("[green]● 运行中[/]"));
-        
+
         table.AddRow(
             new Markup("[aqua]HTTPS 反向代理[/]"),
             new Text(":443"),
@@ -196,9 +208,9 @@ class Program
             {
                 config.SetBasePath(Directory.GetCurrentDirectory());
                 config.AddJsonFile("appsettings.json", optional: true);
-                config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", 
+                config.AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json",
                     optional: true);
-                
+
                 // 加载各平台域名配置目录
                 var appsettingsDir = Path.Combine(Directory.GetCurrentDirectory(), "appsettings");
                 if (Directory.Exists(appsettingsDir))
@@ -208,7 +220,7 @@ class Program
                         config.AddJsonFile(file, optional: false);
                     }
                 }
-                
+
                 config.AddEnvironmentVariables();
                 config.AddCommandLine(args);
             })
