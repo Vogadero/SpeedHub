@@ -1,4 +1,6 @@
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Security.Cryptography.X509Certificates;
 using SpeedHub.Core.Configuration;
 
