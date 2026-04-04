@@ -21,7 +21,7 @@ jobs:
           dotnet-version: '8.0.x'
       
       - name: Restore dependencies
-        run: dotnet restore SpeedHub.sln --configfile nuget.config || dotnet restore SpeedHub.sln
+        run: dotnet restore SpeedHub.sln --configfile nuget.config
       
       - name: Build solution
         run: dotnet build SpeedHub.sln -c Release --no-restore
