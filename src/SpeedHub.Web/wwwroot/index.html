@@ -385,18 +385,21 @@ function setSt(s) {
 }
 
 conn.on('ReceiveStats',function(d){
-    document.getElementById('dnsTotal').textContent = d.dns.totalRequests.toLocaleString();
-    document.getElementById('dnsAvgTime').textContent = d.dns.avgResolutionTimeMs.toFixed(1);
-    document.getElementById('successRate').textContent = (d.dns.successRate*100).toFixed(1);
-    document.getElementById('chr').innerHTML = '<i class="g"></i> 缓存命中: ' + d.dns.hitRate.toFixed(1) + '%';
-    document.getElementById('ut').innerHTML = '<i class="b"></i> 运行时间: ' + d.uptime;
-    document.getElementById('memoryUsage').textContent = d.memoryUsageMb.toFixed(1);
+    var dns = d.dns || {};
+    document.getElementById('dnsTotal').textContent = (dns.totalRequests || 0).toLocaleString();
+    document.getElementById('dnsAvgTime').textContent = (dns.avgResolutionTimeMs || 0).toFixed(1);
+    document.getElementById('successRate').textContent = (dns.successRate || 0).toFixed(1);
+    document.getElementById('chr').innerHTML = '<i class="g"></i> Cache hit: ' + (dns.hitRate || 0).toFixed(1) + '%';
+    document.getElementById('ut').innerHTML = '<i class="b"></i> Uptime: ' + (d.uptime || '--');
+    document.getElementById('memoryUsage').textContent = (d.memoryUsageMb || 0).toFixed(1);
 
-    // DNS 详情面板
-    document.getElementById('pDnsTotal').textContent = d.dns.totalRequests.toLocaleString();
-    document.getElementById('pDnsSuccess').textContent = (d.dns.totalRequests * d.dns.successRate).toFixed(0);
-    document.getElementById('pDnsFail').textContent = (d.dns.totalRequests * (1 - d.dns.successRate)).toFixed(0);
-    document.getElementById('pDnsHitRate').textContent = d.dns.hitRate.toFixed(1);
+    // DNS detail panel
+    document.getElementById('pDnsTotal').textContent = (dns.totalRequests || 0).toLocaleString();
+    var successVal = ((dns.totalRequests || 0) * (dns.successRate || 0)).toFixed(0);
+    var failVal    = ((dns.totalRequests || 0) * (1 - (dns.successRate || 0))).toFixed(0);
+    document.getElementById('pDnsSuccess').textContent = successVal;
+    document.getElementById('pDnsFail').textContent = failVal;
+    document.getElementById('pDnsHitRate').textContent = (dns.hitRate || 0).toFixed(1);
 });
 
 async function start() {
