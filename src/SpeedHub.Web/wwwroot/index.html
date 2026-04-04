@@ -557,24 +557,31 @@ function setSt(s) {
 
 /* 接收统计数据 */
 conn.on('ReceiveStats',function(d){
-    var dns = d.dns || {};
-    var proxy = d.proxy || {};
+    // 调试：打印接收到的数据到控制台
+    console.log('[SpeedHub] 收到统计数据:', d);
+    console.log('[SpeedHub] dns:', d.dns || d.Dns);
+    console.log('[SpeedHub] proxy:', d.proxy || d.Proxy);
+
+    var dns = d.dns || d.Dns || {};
+    var proxy = d.proxy || d.Proxy || {};
 
     // 顶部统计卡片
-    document.getElementById('dnsTotal').textContent = (dns.totalRequests || 0).toLocaleString();
-    document.getElementById('dnsAvgTime').textContent = (dns.avgResolutionTimeMs || 0).toFixed(1);
-    document.getElementById('successRate').textContent = (dns.successRate || 0).toFixed(1);
-    document.getElementById('chr').innerHTML = '<i class="g"></i> 缓存命中率: ' + (dns.hitRate || 0).toFixed(1) + '%';
-    document.getElementById('ut').innerHTML = '<i class="b"></i> 运行时间: ' + (d.uptime || '--');
-    document.getElementById('memoryUsage').textContent = (d.memoryUsageMb || 0).toFixed(1);
+    document.getElementById('dnsTotal').textContent = (dns.totalRequests || dns.TotalRequests || 0).toLocaleString();
+    document.getElementById('dnsAvgTime').textContent = (dns.avgResolutionTimeMs || dns.AvgResolutionTimeMs || 0).toFixed(1);
+    document.getElementById('successRate').textContent = (dns.successRate || dns.SuccessRate || 0).toFixed(1);
+    document.getElementById('chr').innerHTML = '<i class="g"></i> 缓存命中率: ' + (dns.hitRate || dns.HitRate || 0).toFixed(1) + '%';
+    document.getElementById('ut').innerHTML = '<i class="b"></i> 运行时间: ' + (d.uptime || d.Uptime || '--');
+    document.getElementById('memoryUsage').textContent = (d.memoryUsageMb || d.MemoryUsageMb || 0).toFixed(1);
 
     // DNS 详情面板
-    document.getElementById('pDnsTotal').textContent = (dns.totalRequests || 0).toLocaleString();
-    var successVal = ((dns.totalRequests || 0) * (dns.successRate || 0)).toFixed(0);
-    var failVal    = ((dns.totalRequests || 0) * (1 - (dns.successRate || 0))).toFixed(0);
+    document.getElementById('pDnsTotal').textContent = (dns.totalRequests || dns.TotalRequests || 0).toLocaleString();
+    var successRate = dns.successRate || dns.SuccessRate || 0;
+    var totalReq = dns.totalRequests || dns.TotalRequests || 0;
+    var successVal = (totalReq * successRate).toFixed(0);
+    var failVal    = (totalReq * (1 - successRate)).toFixed(0);
     document.getElementById('pDnsSuccess').textContent = successVal;
     document.getElementById('pDnsFail').textContent = failVal;
-    document.getElementById('pDnsHitRate').textContent = (dns.hitRate || 0).toFixed(1);
+    document.getElementById('pDnsHitRate').textContent = (dns.hitRate || dns.HitRate || 0).toFixed(1);
 
     // 真实流量统计
     updateTraffic(proxy);
