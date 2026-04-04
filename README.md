@@ -1,8 +1,12 @@
+<p align="center">
+  <a href="./README.en.md">English</a> | **中文**
+</p>
+
 # SpeedHub
 
 <p align="center">
-  <strong>新一代开发者网络加速器</strong><br>
-  <em>Accelerate Your Code</em>
+  <strong>新一代开发者网络加速器 🚀</strong><br>
+  <em>Accelerate Your Code — 让 GitHub、Google Fonts 等服务访问飞起来</em>
 </p>
 
 <p align="center">
@@ -10,6 +14,48 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/version-v3.0--alpha-orange" alt="Version"/>
 </p>
+
+---
+
+## SpeedHub 是什么？
+
+**SpeedHub 是一款运行在你本地的网络代理加速器**，专门解决开发者访问国外服务（如 GitHub、Google Fonts、npm 等）速度慢、连接不稳定的问题。
+
+### 核心工作原理
+
+```
+你的电脑 (浏览器 / Git / IDE)
+        │
+        ▼
+   ┌─────────┐
+   │ SpeedHub │ ◄── 运行在本地 :38457 端口
+   │  代理引擎  │     智能拦截、加速转发
+   └────┬────┘
+        │ 并行DNS · CDN替换 · TLS优化
+        ▼
+   目标服务器 (github.com, googleapis.com ...)
+```
+
+简单来说：**你把浏览器或 Git 的代理设置指向 SpeedHub（端口 `:38457`），之后所有通过代理的请求都会被 SpeedHub 智能优化加速。**
+
+### 它能解决什么问题？
+
+| 痛点 | SpeedHub 的解法 |
+|------|----------------|
+| GitHub 克隆/下载慢到几 KB/s | **并行 DNS 解析** + **智能 IP 测速选择**，自动走最快路线 |
+| Google Fonts / AJAX 加载超时 | **CDN 替换**：自动将 Google 资源替换为国内可用镜像 |
+| `git push` 经常断连 | **连接池复用** + **自定义 TLS/SNI** 控制，握手更稳 |
+| DNS 污染导致解析失败 | **多 DNS 服务器并发查询**，绕过单点故障 |
+| 不知道网络到底怎么回事 | **Web Dashboard 实时面板**，所有数据一目了然 |
+
+### 典型使用场景
+
+- 🌐 **浏览器加速** — 将浏览器代理设为 `127.0.0.1:38457`，访问 GitHub / StackOverflow 更快
+- 🔧 **Git 加速** — `git config --global http.proxy http://127.0.0.1:38457`，clone / push 速度提升明显
+- 📦 **开发工具加速** — VS Code、IDEA 等通过代理访问插件市场、下载依赖
+- 🐳 **Docker 部署** — 服务器上一键容器化运行，团队共享加速
+
+> 💡 **不需要全局 VPN**！SpeedHub 只针对配置的域名规则生效，不影响其他网络流量。
 
 ---
 
@@ -23,7 +69,7 @@
 | **IP测速选择** | 自动选择延迟最低的IP地址 |
 | **TLS自定义** | 精细化控制SNI和证书验证 |
 | **CDN替换** | Google CDN 自动替换为国内镜像 |
-| **Web Dashboard** | 实时监控面板，可视化配置管理 |
+| **Web Dashboard** | 实时监控面板，可视化配置管理 (:38458) |
 | **Docker支持** | 一键容器化部署 |
 | **跨平台** | Windows / Linux / macOS (含 Apple Silicon) |
 
@@ -52,7 +98,9 @@ chmod +x SpeedHub.Cli
 ./SpeedHub.Cli
 ```
 
-启动后打开 **http://localhost:38458** 查看 Web Dashboard。
+启动后：
+- 🌐 打开 **http://localhost:38458** 查看 Web Dashboard（实时监控面板）
+- ⚡ 把代理设为 **`127.0.0.1:38457`** 即可激活加速
 
 ### Docker 部署
 
@@ -236,6 +284,7 @@ MIT License - 查看 [LICENSE](LICENSE) 文件了解详情。
 
 **SpeedHub — Accelerate Your Code**
 
-Made by [Vogadero](https://github.com/Vogadero)
+Made by [Vogadero](https://github.com/Vogadero) &nbsp;|&nbsp;
+[🇬🇧 English](./README.en.md)
 
 </div>
