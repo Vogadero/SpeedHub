@@ -3,7 +3,9 @@ using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SpeedHub.Core.Configuration;
+using SpeedHub.Core.DomainResolve;
 using Yarp.ReverseProxy.Forwarder;
 
 namespace SpeedHub.Core.Proxy;
