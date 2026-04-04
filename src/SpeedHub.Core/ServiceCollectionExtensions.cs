@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using SpeedHub.Core.Configuration;
 using SpeedHub.Core.DomainResolve;
 using SpeedHub.Core.Proxy;
 using SpeedHub.Core.Tls;
@@ -50,6 +52,7 @@ public class StatsService
     public object GetDashboardStats()
     {
         var dnsStats = _dnsResolver.Stats;
+        var process = Process.GetCurrentProcess();
         
         return new
         {
@@ -64,7 +67,7 @@ public class StatsService
                 SuccessRate = Math.Round(dnsStats.SuccessRate * 100, 2),
                 AvgResolutionTimeMs = Math.Round(dnsStats.AvgResolutionTimeMs, 2),
             },
-            Uptime = (DateTime.UtcNow - Process.GetCurrentProcess().StartTime).TotalMinutes.ToString("F1") + "分钟",
+            Uptime = (DateTime.UtcNow - process.StartTime).TotalMinutes.ToString("F1") + "分钟",
             MemoryUsageMb = GC.GetGCMemoryInfo().HeapSizeBytes / 1024.0 / 1024.0,
         };
     }
