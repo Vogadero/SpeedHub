@@ -16,7 +16,7 @@ namespace SpeedHub.Core.DomainResolve;
 /// </summary>
 public class ParallelDnsResolver : IDnsResolver
 {
-    private readonly IOptions<DnsResolverConfig> _config;
+    private readonly IOptions<SpeedHubConfig> _config;
     private readonly ILogger<ParallelDnsResolver> _logger;
     private readonly IMemoryCache _cache;
     private readonly LookupClient _dnsClient;
@@ -30,7 +30,7 @@ public class ParallelDnsResolver : IDnsResolver
     public DnsStats Stats { get; } = new();
 
     public ParallelDnsResolver(
-        IOptions<DnsResolverConfig> config,
+        IOptions<SpeedHubConfig> config,
         ILogger<ParallelDnsResolver> logger,
         IMemoryCache cache)
     {
