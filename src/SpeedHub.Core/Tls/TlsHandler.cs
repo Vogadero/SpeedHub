@@ -5,13 +5,13 @@ using Microsoft.Extensions.Options;
 using System.Security.Cryptography.X509Certificates;
 using SpeedHub.Core.Configuration;
 
-namespace SpeedHub.Core.Tls;
-
-/// <summary>
-/// TLS处理器 - 管理证书和TLS连接配置
-/// </summary>
-public class TlsHandler : ITlsHandler
+namespace SpeedHub.Core.Tls
 {
+    /// <summary>
+    /// TLS处理器 - 管理证书和TLS连接配置
+    /// </summary>
+    public class TlsHandler : ITlsHandler
+    {
     private readonly IOptions<SpeedHubConfig> _config;
     private readonly ILogger<TlsHandler> _logger;
     
@@ -166,4 +166,5 @@ public class TlsConnectionConfig
     /// 是否忽略证书名称不匹配
     /// </summary>
     public bool IgnoreNameMismatch { get; set; } = false;
+}
 }

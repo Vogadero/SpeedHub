@@ -10,13 +10,13 @@ using SpeedHub.Core.Configuration;
 using SpeedHub.Core.DomainResolve;
 using Yarp.ReverseProxy.Forwarder;
 
-namespace SpeedHub.Core.Proxy;
-
-/// <summary>
-/// 高性能HTTP代理处理器 - 带连接池和请求日志
-/// </summary>
-public class HttpProxyHandler
+namespace SpeedHub.Core.Proxy
 {
+    /// <summary>
+    /// 高性能HTTP代理处理器 - 带连接池和请求日志
+    /// </summary>
+    public class HttpProxyHandler
+    {
     private readonly IHttpForwarder _forwarder;
     private readonly IDnsResolver _dnsResolver;
     private readonly IOptions<SpeedHubConfig> _config;
@@ -278,4 +278,5 @@ public class ProxyStats
     public long TotalBytesTransferred { get; set; }
 
     public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests : 0;
+}
 }

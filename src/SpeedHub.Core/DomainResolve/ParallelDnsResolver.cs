@@ -9,13 +9,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SpeedHub.Core.Configuration;
 
-namespace SpeedHub.Core.DomainResolve;
-
-/// <summary>
-/// 并行DNS解析器 - 优化版：并行查询 + 缓存 + 智能IP选择
-/// </summary>
-public class ParallelDnsResolver : IDnsResolver
+namespace SpeedHub.Core.DomainResolve
 {
+    /// <summary>
+    /// 并行DNS解析器 - 优化版：并行查询 + 缓存 + 智能IP选择
+    /// </summary>
+    public class ParallelDnsResolver : IDnsResolver
+    {
     private readonly IOptions<SpeedHubConfig> _config;
     private readonly ILogger<ParallelDnsResolver> _logger;
     private readonly IMemoryCache _cache;
@@ -338,5 +338,6 @@ public class DnsResolutionException : Exception
     public DnsResolutionException(string message, string? domain = null) : base(message)
     {
         Domain = domain ?? string.Empty;
+        }
     }
 }

@@ -1,12 +1,12 @@
 using System.Net;
 
-namespace SpeedHub.Core.Configuration;
-
-/// <summary>
-/// 域名配置项
-/// </summary>
-public class DomainConfig
+namespace SpeedHub.Core.Configuration
 {
+    /// <summary>
+    /// 域名配置项
+    /// </summary>
+    public class DomainConfig
+    {
     /// <summary>
     /// 域名匹配模式（支持通配符 *）
     /// </summary>
@@ -77,4 +77,5 @@ public class ResponseConfig
     /// 响应内容
     /// </summary>
     public string? ContentValue { get; set; }
+    }
 }

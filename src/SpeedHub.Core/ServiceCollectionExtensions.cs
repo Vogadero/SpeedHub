@@ -45,6 +45,9 @@ namespace SpeedHub.Core
             // 注册DNS解析器（优化版：并行查询 + 缓存）
             services.AddSingleton<IDnsResolver, ParallelDnsResolver>();
 
+            // 注册YARP反向代理（HttpProxyHandler 依赖 IHttpForwarder）
+            services.AddHttpForwarder();
+
             // 注册TLS处理器
             services.AddSingleton<ITlsHandler, TlsHandler>();
 

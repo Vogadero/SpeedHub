@@ -1,10 +1,10 @@
-namespace SpeedHub.Core.Configuration;
-
-/// <summary>
-/// SpeedHub 应用配置
-/// </summary>
-public class SpeedHubConfig
+namespace SpeedHub.Core.Configuration
 {
+    /// <summary>
+    /// SpeedHub 应用配置
+    /// </summary>
+    public class SpeedHubConfig
+    {
     /// <summary>
     /// HTTP 代理端口
     /// </summary>
@@ -79,4 +79,5 @@ public class SpeedHubConfig
     /// 日志级别
     /// </summary>
     public string LogLevel { get; set; } = "Information";
+    }
 }

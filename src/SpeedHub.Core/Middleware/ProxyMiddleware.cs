@@ -5,20 +5,20 @@ using Microsoft.Extensions.Logging;
 using SpeedHub.Core.Configuration;
 using SpeedHub.Core.Proxy;
 
-namespace SpeedHub.Core.Middleware;
-
-/// <summary>
-/// HTTP 代理中间件 - 拦截 38457 端口入站请求并转发给 HttpProxyHandler
-/// 
-/// 工作流程：
-///   浏览器 -> :38457 (本中间件) -> 解析目标域名 -> DNS/YARP -> 目标服务器
-/// 
-/// 支持两种代理协议：
-///   1. CONNECT 隧道（HTTPS 请求）：用于 HTTPS 站点的 TLS 隧道
-///   2. 普通代理转发（HTTP 请求）：直接提取 Host 头中的目标域名
-/// </summary>
-public class ProxyMiddleware
+namespace SpeedHub.Core.Middleware
 {
+    /// <summary>
+    /// HTTP 代理中间件 - 拦截 38457 端口入站请求并转发给 HttpProxyHandler
+    ///
+    /// 工作流程：
+    ///   浏览器 -> :38457 (本中间件) -> 解析目标域名 -> DNS/YARP -> 目标服务器
+    ///
+    /// 支持两种代理协议：
+    ///   1. CONNECT 隧道（HTTPS 请求）：用于 HTTPS 站点的 TLS 隧道
+    ///   2. 普通代理转发（HTTP 请求）：直接提取 Host 头中的目标域名
+    /// </summary>
+    public class ProxyMiddleware
+    {
     private readonly RequestDelegate _next;
     private readonly ILogger<ProxyMiddleware> _logger;
     private static readonly Regex HostPortRegex = new(@"^(.+?):(\d+)$", RegexOptions.Compiled);
@@ -133,4 +133,5 @@ public class ProxyMiddleware
             || lower.StartsWith("172.3")
             || lower.StartsWith("192.168.");
     }
+}
 }
