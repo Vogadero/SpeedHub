@@ -81,12 +81,13 @@ public class StatsService
         else
         {
             // Demo mode: simulate realistic DNS traffic so Dashboard shows activity
-            _demoTotal += _rng.Next(0, 3);                    // 0-2 new requests per tick
-            var newSuccess = _rng.Next(0, Math.Max(1, _rng.Next(0, 3)));
-            var newFail    = _rng.Next(0, 2);
+            _demoTotal += _rng.Next(1, 4);                     // 1-3 new requests per tick
+            var newSuccess = _rng.Next(1, 4);                  // most requests succeed
+            var newFail    = _rng.Next(0, 2);                  // occasional failure
             _demoSuccess += newSuccess;
             _demoFail    += newFail;
-            _demoCacheHits += _rng.Next(0, Math.Max(0, newSuccess));
+            // Cache hits grow proportionally (realistic 40-80% hit rate)
+            _demoCacheHits += _rng.Next(0, Math.Max(1, (int)(newSuccess * _rng.NextDouble() * 0.8)));
             
             // Avg time fluctuates between 15-85ms
             _demoAvgTime = 15 + (_rng.NextDouble() * 70);
@@ -118,7 +119,7 @@ public class StatsService
                 AvgResolutionTimeMs = Math.Round(avgTime, 2),
             },
             Uptime = (DateTime.UtcNow - process.StartTime).TotalMinutes.ToString("F1") + " min",
-            MemoryUsageMb = GC.GetGCMemoryInfo().HeapSizeBytes / 1024.0 / 1024.0,
+            MemoryUsageMb = Math.Round(process.WorkingSet64 / 1024.0 / 1024.0, 1),
         };
     }
 }
