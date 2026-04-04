@@ -29,4 +29,9 @@
     <PackageReference Include="DnsClient" Version="1.8.0" />
   </ItemGroup>
 
+  <!-- 框架内置类型隐式引用 (classlib 需要显式声明) -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
 </Project>
