@@ -39,6 +39,7 @@ jobs:
           dotnet-version: '8.0.x'
       
       - name: Publish ${{ matrix.runtime }}
+        shell: bash
         run: |
           dotnet publish src/SpeedHub.Cli/SpeedHub.Cli.csproj \
             -c Release \
@@ -51,6 +52,7 @@ jobs:
       
       # 复制配置文件到发布目录
       - name: Copy config files
+        shell: bash
         run: |
           cp appsettings.json publish/${{ matrix.runtime }}/ || true
           cp -r appsettings publish/${{ matrix.runtime }}/ || true
