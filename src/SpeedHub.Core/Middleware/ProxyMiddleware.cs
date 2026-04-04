@@ -176,28 +176,7 @@ namespace SpeedHub.Core.Middleware
         /// </summary>
         private static Socket? GetClientSocket(HttpContext context)
         {
-            // 尝试多种 Feature 名称获取底层 Socket
-            // Kestrel 内部使用不同的 Feature类型取决于版本和配置
-            
-            // 方式 1: 通过反射获取 Kestrel 内部 Socket
-            try
-            {
-                var connectionFeature = context.Features.Get<dynamic>("Microsoft.AspNetCore.Server.Kestrel.Core.Internal.HttpConnectionMiddlewareContext+ConnectionFeature");
-                if (connectionFeature != null)
-                {
-                    var socketProp = connectionFeature.GetType().GetProperty("Socket");
-                    if (socketProp != null)
-                    {
-                        return socketProp.GetValue(connectionFeature) as Socket;
-                    }
-                }
-            }
-            catch
-            {
-                // 忽略反射失败
-            }
-
-            // 方式 2: 遍历所有 Features 查找 Socket
+            // 遍历所有 Features 查找包含 Socket 属性的对象
             foreach (var feature in context.Features)
             {
                 if (feature.Value == null) continue;
