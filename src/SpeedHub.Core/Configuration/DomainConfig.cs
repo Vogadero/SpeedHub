@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace SpeedHub.Core.Configuration;
 
 /// <summary>
