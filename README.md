@@ -1,4 +1,4 @@
-# ⚡ SpeedHub
+# SpeedHub
 
 <p align="center">
   <strong>新一代开发者网络加速器</strong><br>
@@ -8,49 +8,54 @@
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet" alt=".NET 8"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/version-v3.0--alpha.1-orange" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-v3.0--alpha-orange" alt="Version"/>
 </p>
 
 ---
 
-## ✨ 特性
+## 功能特性
 
 | 功能 | 描述 |
 |------|------|
-| 🌐 **多协议代理** | HTTP/HTTPS/SSH/Git 协议一站式支持 |
-| 🚀 **并行DNS解析** | 多DNS服务器并发查询，速度提升 **50%+** |
-| 💾 **智能缓存** | DNS结果自动缓存，减少重复查询 |
-| ⚡ **IP测速选择** | 自动选择延迟最低的IP地址 |
-| 🔒 **TLS自定义** | 精细化控制SNI和证书验证 |
-| 🔄 **CDN替换** | Google CDN 自动替换为国内镜像 |
-| 📊 **Web Dashboard** | 实时监控面板，可视化配置管理 |
-| 🐳 **Docker支持** | 一键容器化部署 |
+| **多协议代理** | HTTP/HTTPS/SSH/Git 协议一站式支持 |
+| **并行DNS解析** | 多DNS服务器并发查询，速度提升 50%+ |
+| **智能缓存** | DNS结果自动缓存，减少重复查询 |
+| **IP测速选择** | 自动选择延迟最低的IP地址 |
+| **TLS自定义** | 精细化控制SNI和证书验证 |
+| **CDN替换** | Google CDN 自动替换为国内镜像 |
+| **Web Dashboard** | 实时监控面板，可视化配置管理 |
+| **Docker支持** | 一键容器化部署 |
+| **跨平台** | Windows / Linux / macOS (含 Apple Silicon) |
 
-## 🚀 快速开始
+## 快速开始
 
-### Windows 桌面版
+### 下载
+
+前往 [GitHub Releases](https://github.com/Vogadero/SpeedHub/releases) 下载对应平台包：
+
+| 平台 | 文件 |
+|:------|:------|
+| Windows x64 | `SpeedHub-win-x64.zip` |
+| Linux x64 | `SpeedHub-linux-x64.tar.gz` |
+| macOS Intel | `SpeedHub-osx-x64.zip` |
+| macOS Apple Silicon | `SpeedHub-osx-arm64.zip` |
+
+### 运行
+
 ```bash
-# 下载最新版本
-https://github.com/Vogadero/SpeedHub/releases
+# Windows — 解压后双击运行
+SpeedHub.Cli.exe
 
-# 解压后双击运行 speedhub.exe
-speedhub.exe run
-```
-
-### Linux / macOS
-```bash
-# 下载并解压
+# Linux / macOS
 tar -xzf SpeedHub-linux-x64.tar.gz
-cd speedhub
-
-# 运行
-./speedhub run
-
-# 或安装为后台服务（需要sudo）
-sudo ./speedhub start
+chmod +x SpeedHub.Cli
+./SpeedHub.Cli
 ```
+
+启动后打开 **http://localhost:38458** 查看 Web Dashboard。
 
 ### Docker 部署
+
 ```bash
 docker run -d \
   --name speedhub \
@@ -59,13 +64,18 @@ docker run -d \
   ghcr.io/vogadero/speedhub:latest
 ```
 
-## 📡 Web Dashboard
+## Web Dashboard
 
-启动后访问：**http://localhost:38458**
+启动后访问 **http://localhost:38458** 即可看到实时监控面板，包含：
+
+- **DNS 解析统计** — 总请求数、成功/失败、缓存命中率、平均耗时
+- **域名规则管理** — 当前生效的 TLS SNI、CDN 替换等规则列表
+- **实时流量监控** — 各域名的流量带宽，2 秒自动刷新
+- **系统状态** — 运行时间、内存占用、连接状态（SignalR 实时推送）
 
 ![Dashboard Preview](docs/dashboard-preview.png)
 
-## ⚙️ 配置说明
+## 配置说明
 
 ### 基础配置 (`appsettings.json`)
 
@@ -113,7 +123,7 @@ docker run -d \
 | `IPAddress` | IPAddress? | 强制指定请求IP |
 | `Response` | object? | 自定义响应(阻断) |
 
-## 🏗️ 架构设计
+## 架构设计
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -121,7 +131,7 @@ docker run -d \
 │                                                     │
 │  ┌─────────────┐   ┌──────────────┐                │
 │  │  Web UI     │   │   CLI        │                │
-│  │  (Blazor)   │──▶│ (Spectre)    │                │
+│  │  (SignalR)  │──▶│ (Spectre)    │                │
 │  └─────────────┘   └──────────────┘                │
 │         │                                         │
 │  ┌──────▼──────┐                                  │
@@ -136,12 +146,11 @@ docker run -d \
 └─────────────────────────────────────────────────────┘
 ```
 
-## 🔧 开发指南
+## 开发指南
 
 ### 环境要求
 
 - .NET 8 SDK
-- Node.js 18+ (可选，用于前端)
 - Git
 
 ### 本地开发
@@ -154,10 +163,10 @@ cd SpeedHub
 # 还原依赖
 dotnet restore
 
-# 运行
+# 运行 Web Dashboard
 dotnet run --project src/SpeedHub.Web
 
-# 或运行CLI版本
+# 或运行 CLI 版本
 dotnet run --project src/SpeedHub.Cli
 ```
 
@@ -171,17 +180,17 @@ SpeedHub/
 │   │   ├── Proxy/              # 代理处理
 │   │   ├── Tls/                # TLS处理
 │   │   └── Configuration/      # 配置模型
-│   ├── SpeedHub.Web/           # Web Dashboard
+│   ├── SpeedHub.Web/           # Web Dashboard (静态前端 + SignalR)
 │   │   ├── Hubs/               # SignalR Hub
-│   │   └── wwwroot/            # 静态资源
-│   └── SpeedHub.Cli/           # CLI工具
-├── appsettings/                # 域名配置文件
-├── .github/workflows/          # CI/CD
+│   │   └── wwwroot/            # 前端页面
+│   └── SpeedHub.Cli/           # CLI 工具 (Spectre.Console)
+├── appsettings/                # 域名规则配置文件
+├── .github/workflows/          # CI/CD (多平台构建 + Release 自动发布)
 ├── docs/                       # 文档
-└── tests/                      # 测试
+└── tests/                      # 单元测试
 ```
 
-## 📊 与 FastGithub 的改进对比
+## 与 FastGithub 的改进对比
 
 | 维度 | FastGithub (v2.1.4) | SpeedHub (v3.0) |
 |------|---------------------|-----------------|
@@ -194,9 +203,14 @@ SpeedHub/
 | API | 无 | **RESTful API** |
 | 监控 | 日志文件 | **实时统计面板** |
 | CI/CD | 手动发布 | **GitHub Actions** 多平台自动构建 |
+| 跨平台 | 仅 Windows | **Windows / Linux / macOS** |
 | Docker | 无 | **官方支持** |
 
-## 🤝 贡献
+## 更新日志
+
+详见 [Releases](https://github.com/Vogadero/SpeedHub/releases) 页面。
+
+## 贡献
 
 欢迎提交 Issue 和 Pull Request！
 
@@ -206,22 +220,22 @@ SpeedHub/
 4. 推送到分支 (`git push origin feature/amazing-feature`)
 5. 打开 Pull Request
 
-## 📄 License
+## License
 
 MIT License - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 🙏 致谢
+## 致谢
 
 - [FastGithub](https://github.com/dotnetcore/FastGithub) - 原始项目的灵感来源
 - [YARP](https://microsoft.github.io/reverse-proxy/) - 微软开源的反向代理框架
-- [Spectre.Console](https://spectreconsole.net/) - 漂亮的终端UI库
+- [Spectre.Console](https://spectreconsole.net/) - 终端UI库
 
 ---
 
 <div align="center">
 
-**⚡ SpeedHub — Accelerate Your Code ⚡**
+**SpeedHub — Accelerate Your Code**
 
-Made with ❤️ by [Vogadero](https://github.com/Vogadero)
+Made by [Vogadero](https://github.com/Vogadero)
 
 </div>
