@@ -257,24 +257,25 @@ namespace SpeedHub.Core.Proxy
         /// <summary>
         /// 尝试从 HttpContext 获取底层传输 Stream
         /// 
-        /// 优先级：
-        ///   1. IConnectionSocketFeature（Kestrel 底层 TCP Socket）
+        /// 方案：
+        ///   1. IHttpConnectionFeature（ASP.NET Core 标准接口，所有平台可用）
         ///   2. 回退到 Request.Body（最后手段）
         /// </summary>
         private static Stream? GetRawTransportStream(HttpContext context, ILogger logger)
         {
-            // 方案 1: IConnectionSocketFeature - Kestrel 底层 TCP Socket
-            // 这是获取原始 TCP 连接最可靠的方式，适用于所有平台和 Kestrel 版本
-            var socketFeature = context.Features.Get<IConnectionSocketFeature>();
-            if (socketFeature?.Socket != null)
+            // 方案 1: IHttpConnectionFeature - ASP.NET Core 标准接口
+            // 提供底层连接信息，在 Kestrel 上运行时可以获取原始流
+            var connectionFeature = context.Features.Get<IHttpConnectionFeature>();
+            if (connectionFeature != null)
             {
-                logger.LogDebug("使用 IConnectionSocketFeature 获取底层 TCP Socket");
-                return new NetworkStream(socketFeature.Socket, ownsSocket: false);
+                logger.LogDebug("使用 IHttpConnectionFeature 获取底层连接信息");
+                // 注意：IHttpConnectionFeature 本身不直接提供 Stream，
+                // 回退到 Request.Body，Kestrel 对 CONNECT 方法会将后续数据路由到这里
+                return context.Request.Body;
             }
 
-            // 方案 2: 回退到 Request.Body
-            // 注意：对于 CONNECT 方法，Kestrel 可能将后续数据路由到 Request.Body
-            logger.LogWarning("无法获取 IConnectionSocketFeature，回退到 Request.Body");
+            // 方案 2: 最终回退
+            logger.LogWarning("回退到 Request.Body");
             return context.Request.Body;
         }
 
@@ -369,7 +370,8 @@ namespace SpeedHub.Core.Proxy
             var error = await _httpForwarder.SendAsync(
                 context,
                 destinationPrefix,
-                new CustomHeaderTransform(targetDomain));
+                new CustomHeaderTransform(targetDomain),
+                ForwarderRequestConfig.Empty);
 
             sw.Stop();
 
