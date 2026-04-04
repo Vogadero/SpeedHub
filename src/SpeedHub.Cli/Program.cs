@@ -78,7 +78,9 @@ class Program
             // 显示状态面板
             PrintStatusPanel();
 
-            AnsiConsole.MarkupLine("\n[dim]按 Ctrl+C 停止服务...[/]\n");
+            // Web Dashboard 地址（可点击跳转）
+            AnsiConsole.MarkupLine("\n[bold]🌐 Web Dashboard:[/] [blue underline]http://localhost:38458[/]");
+            AnsiConsole.MarkupLine("[dim]按 Ctrl+C 停止服务...[/]\n");
 
             await hostBuilder.RunConsoleAsync();
             return 0;
@@ -256,11 +258,21 @@ public class SpeedHubStartup
         // SpeedHub 核心服务
         services.AddSpeedHubCore(Configuration);
 
-        // SignalR 实时通信
-        services.AddSignalR();
+        // SignalR 实时通信（camelCase JSON 序列化，匹配前端 JS 字段名）
+        services.AddSignalR(options =>
+        {
+            options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+            options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+        }).AddJsonProtocol(options =>
+        {
+            options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        });
 
-        // 控制器 API
-        services.AddControllers();
+        // 控制器 API（同样使用 camelCase）
+        services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        });
 
         // CORS
         services.AddCors(options =>

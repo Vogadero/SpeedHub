@@ -18,6 +18,9 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddSpeedHubCore(this IServiceCollection services, IConfiguration configuration)
     {
+        // 内存缓存（ParallelDnsResolver 的 DNS 缓存依赖此服务）
+        services.AddMemoryCache();
+        
         // 绑定配置
         services.Configure<SpeedHubConfig>(configuration.GetSection("SpeedHub"));
         
