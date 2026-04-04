@@ -1,0 +1,28 @@
+fix: 修复 ERR_SSL_PROTOCOL_ERROR - CONNECT 隧道改用底层原始字节流
+
+## 问题
+浏览器设代理 127.0.0.1:38457 访问 GitHub 报:
+  ERR_SSL_PROTOCOL_ERROR - 此站点的连接不安全
+
+## 根因
+CONNECT 隧道使用 context.Request.Body / Response.Body 做双向中继，
+但 Kestrel 的 Body 流经过 HTTP 协议层处理，会破坏 TLS 原始字节：
+- 浏览器发 TLS ClientHello -> HTTP 层截断/修改
+- GitHub 返回 ServerHello -> Response.Body 包装成 HTTP 响应
+- 结果：浏览器收到损坏的 TLS 数据 -> SSL 握手失败
+
+## 修复方案：三层改进
+
+### 1. 获取底层 TCP Stream（关键）
+新增 GetRawTransportStream() 方法：
+- 优先从 IRequestBodyPipeFeature 获取 PipeReader
+- 包装为 PipeReadStream (继承 Stream)
+- 回退到 Request.Body（最后手段）
+
+### 2. 手动发送 200 Established
+不再用 HttpContext API (context.Response.StatusCode = 200)，
+而是手动构造原始 HTTP 响应行写入底层流
+
+### 3. RawRelayAsync 替代 CopyStreamAsync
+- 新方法强调'原始字节透明转发'
+- 记录包数和总字节数用于诊断
