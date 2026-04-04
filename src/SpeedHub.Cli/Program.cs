@@ -58,7 +58,7 @@ class Program
 
             AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
-                .SpinnerColor(Color.Aqua)
+                .SpinnerStyle(Style.Plain.Foreground(Color.Aqua))
                 .Start("正在启动 SpeedHub...", ctx =>
                 {
                     ctx.Status = "初始化 DNS 解析器...";
