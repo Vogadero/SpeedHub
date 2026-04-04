@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
@@ -23,6 +24,7 @@ namespace SpeedHub.Core.Proxy
     {
         private readonly IDnsResolver _dnsResolver;
         private readonly IHttpForwarder _httpForwarder;
+        private readonly HttpMessageInvoker _httpClient;
         private readonly ILogger<HttpProxyHandler> _logger;
         private readonly IOptions<SpeedHubConfig> _config;
 
@@ -31,11 +33,13 @@ namespace SpeedHub.Core.Proxy
         public HttpProxyHandler(
             IDnsResolver dnsResolver,
             IHttpForwarder httpForwarder,
+            HttpMessageInvoker httpClient,
             ILogger<HttpProxyHandler> logger,
             IOptions<SpeedHubConfig> config)
         {
             _dnsResolver = dnsResolver;
             _httpForwarder = httpForwarder;
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _logger = logger;
             _config = config;
         }
@@ -367,11 +371,13 @@ namespace SpeedHub.Core.Proxy
                 requestId, request.Method, request.Path, destinationPrefix);
 
             // 5. 使用 YARP 反向代理转发
+            // 签名: SendAsync(context, destinationPrefix, httpClient, requestConfig, transformer)
             var error = await _httpForwarder.SendAsync(
                 context,
                 destinationPrefix,
-                new CustomHeaderTransform(targetDomain),
-                ForwarderRequestConfig.Empty);
+                _httpClient,
+                ForwarderRequestConfig.Empty,
+                new CustomHeaderTransform(targetDomain));
 
             sw.Stop();
 

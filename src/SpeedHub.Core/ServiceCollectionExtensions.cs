@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using SpeedHub.Core.Configuration;
@@ -47,6 +48,18 @@ namespace SpeedHub.Core
 
             // 注册YARP反向代理（HttpProxyHandler 依赖 IHttpForwarder）
             services.AddHttpForwarder();
+
+            // 注册 HttpMessageInvoker (YARP SendAsync 第3参数需要)
+            services.AddSingleton<HttpMessageInvoker>(sp =>
+            {
+                var handler = new SocketsHttpHandler
+                {
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                    MaxConnectionsPerServer = 100,
+                    UseCookies = false
+                };
+                return new HttpMessageInvoker(handler);
+            });
 
             // 注册TLS处理器
             services.AddSingleton<ITlsHandler, TlsHandler>();
