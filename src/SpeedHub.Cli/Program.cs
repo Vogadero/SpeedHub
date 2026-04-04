@@ -11,13 +11,13 @@ using Microsoft.Extensions.Logging;
 using SpeedHub.Core;
 using SpeedHub.Web.Hubs;
 
-namespace SpeedHub.Cli;
-
-/// <summary>
-/// SpeedHub 命令行入口
-/// </summary>
-class Program
+namespace SpeedHub.Cli
 {
+    /// <summary>
+    /// SpeedHub 命令行入口
+    /// </summary>
+    class Program
+    {
     static async Task<int> Main(string[] args)
     {
         // 漂亮的 Banner
@@ -262,6 +262,7 @@ class Program
                 config.AddEnvironmentVariables();
                 config.AddCommandLine(args);
             });
+        }
     }
 }
 
@@ -352,5 +353,6 @@ public class SpeedHubStartup
                 // 默认路由：返回 Web Dashboard 前端页面（wwwroot/index.html）
                 endpoints.MapFallbackToFile("index.html");
             });
+        }
     }
 }

@@ -2,15 +2,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SpeedHub.Core.Configuration;
 
-namespace SpeedHub.Web.Controllers;
-
-/// <summary>
-/// 域名配置 API - 返回所有已加载的域名加速规则
-/// </summary>
-[ApiController]
-[Route("api/[controller]")]
-public class DomainsController : ControllerBase
+namespace SpeedHub.Web.Controllers
 {
+    /// <summary>
+    /// 域名配置 API - 返回所有已加载的域名加速规则
+    /// </summary>
+    [ApiController]
+    [Route("api/[controller]")]
+    public class DomainsController : ControllerBase
+    {
     private readonly SpeedHubConfig _config;
 
     public DomainsController(IOptions<SpeedHubConfig> config)
@@ -50,4 +50,5 @@ public class DomainRuleDto
     public string? Destination { get; set; }
     public bool TlsIgnoreNameMismatch { get; set; }
     public bool Enabled { get; set; }
+    }
 }
