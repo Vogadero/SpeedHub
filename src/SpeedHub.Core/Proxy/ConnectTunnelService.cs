@@ -232,22 +232,32 @@ namespace SpeedHub.Core.Proxy
 
             _logger.LogInformation("[{ReqId}] 开始双向原始字节中继（TLS 模式）...", requestId);
 
+            long bytesReceived = 0, bytesSent = 0;
+
             // 浏览器 -> 目标服务器
-            var clientToTarget = RawRelayAsync(clientStream, targetStream, "C->T", requestId, cancellationToken);
+            var clientToTarget = RawRelayAsync(clientStream, targetStream, "C->T", requestId, cancellationToken,
+                bytes => System.Threading.Interlocked.Add(ref bytesReceived, bytes));
 
             // 目标服务器 -> 浏览器
-            var targetToClient = RawRelayAsync(targetStream, clientStream, "T->C", requestId, cancellationToken);
+            var targetToClient = RawRelayAsync(targetStream, clientStream, "T->C", requestId, cancellationToken,
+                bytes => System.Threading.Interlocked.Add(ref bytesSent, bytes));
 
             // 等待任一方向结束
             await Task.WhenAny(clientToTarget, targetToClient);
 
+            // 累加到全局统计
+            System.Threading.Interlocked.Add(ref HttpProxyHandler.Stats._bytesReceived, bytesReceived);
+            System.Threading.Interlocked.Add(ref HttpProxyHandler.Stats._bytesSent, bytesSent);
+            System.Threading.Interlocked.Increment(ref HttpProxyHandler.Stats._successfulRequests);
+            System.Threading.Interlocked.Increment(ref HttpProxyHandler.Stats._totalRequests);
+
             sw.Stop();
             _logger.LogInformation(
-                "[{ReqId}] CONNECT 隧道正常关闭, 耗时 {Elapsed:F2}ms",
-                requestId, sw.Elapsed.TotalMilliseconds);
+                "[{ReqId}] CONNECT 隧道正常关闭, 耗时 {Elapsed:F2}ms, 上行 {Up} 字节, 下行 {Down} 字节",
+                requestId, sw.Elapsed.TotalMilliseconds, bytesReceived, bytesSent);
         }
 
-        private async Task RawRelayAsync(Stream source, Stream dest, string direction, string requestId, CancellationToken cancellationToken)
+        private async Task RawRelayAsync(Stream source, Stream dest, string direction, string requestId, CancellationToken cancellationToken, Action<long>? onBytesTransferred = null)
         {
             var buffer = new byte[8192];
             int totalBytes = 0;
@@ -262,6 +272,12 @@ namespace SpeedHub.Core.Proxy
                     packetCount++;
                     await dest.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
                     await dest.FlushAsync(cancellationToken);
+                }
+
+                // 统计流量
+                if (totalBytes > 0)
+                {
+                    onBytesTransferred?.Invoke(totalBytes);
                 }
 
                 if (totalBytes > 0)
