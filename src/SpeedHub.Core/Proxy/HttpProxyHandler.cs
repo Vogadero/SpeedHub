@@ -245,19 +245,14 @@ internal class CustomHeaderTransform : HttpTransformer
         _targetHost = targetHost;
     }
 
-    public override async ValueTask<TransformResult> TransformRequestAsync(
-        HttpContext httpRequestContext,
-        HttpRequestMessage proxyRequest,
-        string destinationPrefix,
-        CancellationToken cancellationToken)
+    public override async ValueTask TransformRequestAsync(HttpContext httpRequestContext,
+        HttpRequestMessage proxyRequest, string destinationPrefix)
     {
-        // 调用基类先做默认转换
-        var result = await base.TransformRequestAsync(httpRequestContext, proxyRequest, destinationPrefix, cancellationToken);
+        // 调用基类默认转换（拷贝请求头、方法等）
+        await base.TransformRequestAsync(httpRequestContext, proxyRequest, destinationPrefix);
 
-        // 设置原始 Host 头
+        // 覆盖 Host 头为原始目标域名
         proxyRequest.Headers.Host = _targetHost;
-
-        return result;
     }
 }
 
