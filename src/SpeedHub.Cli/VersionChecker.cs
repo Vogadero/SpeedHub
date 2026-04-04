@@ -13,7 +13,12 @@ namespace SpeedHub.Cli
     {
         private const string GitHubApiUrl = "https://api.github.com/repos/Vogadero/SpeedHub/releases/latest";
         private const string ReleasesPageUrl = "https://github.com/Vogadero/SpeedHub/releases";
-        private const string CurrentVersion = "v3.0-alpha.1";
+        
+        /// <summary>
+        /// 获取当前程序版本（从程序集版本读取）
+        /// </summary>
+        private static string CurrentVersion => 
+            $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "3.0.0"}";
 
         /// <summary>
         /// 异步检查最新版本，如果有更新则提示用户
@@ -87,14 +92,38 @@ namespace SpeedHub.Cli
                 latest = latest.TrimStart('v');
                 current = current.TrimStart('v');
 
-                // 解析语义化版本号 (major.minor.patch)
+                // 提取主版本号 (major.minor.patch)
                 var latestParts = ParseVersion(latest);
                 var currentParts = ParseVersion(current);
 
+                // 比较 major.minor.patch
                 for (int i = 0; i < 3; i++)
                 {
                     if (latestParts[i] > currentParts[i]) return true;
                     if (latestParts[i] < currentParts[i]) return false;
+                }
+
+                // 主版本号相同，比较 pre-release 标签 (如 alpha.30 vs alpha.31)
+                var latestPreRelease = ExtractPreRelease(latest);
+                var currentPreRelease = ExtractPreRelease(current);
+
+                if (!string.IsNullOrEmpty(latestPreRelease) && !string.IsNullOrEmpty(currentPreRelease))
+                {
+                    // 提取 pre-release 中的数字部分进行比较
+                    var latestNum = ExtractPreReleaseNumber(latestPreRelease);
+                    var currentNum = ExtractPreReleaseNumber(currentPreRelease);
+
+                    if (latestNum > currentNum) return true;
+                }
+                else if (!string.IsNullOrEmpty(latestPreRelease) && string.IsNullOrEmpty(currentPreRelease))
+                {
+                    // latest 是 pre-release，current 是正式版，不认为更新
+                    return false;
+                }
+                else if (string.IsNullOrEmpty(latestPreRelease) && !string.IsNullOrEmpty(currentPreRelease))
+                {
+                    // latest 是正式版，current 是 pre-release，认为更新
+                    return true;
                 }
 
                 return false; // 版本相同
@@ -104,6 +133,36 @@ namespace SpeedHub.Cli
                 // 解析失败时保守返回 false
                 return false;
             }
+        }
+
+        /// <summary>
+        /// 提取 pre-release 标签 (如 "alpha.30" 从 "3.0.0-alpha.30")
+        /// </summary>
+        private static string ExtractPreRelease(string version)
+        {
+            var dashIndex = version.IndexOf('-');
+            if (dashIndex > 0 && dashIndex < version.Length - 1)
+            {
+                return version.Substring(dashIndex + 1);
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// 从 pre-release 标签提取数字 (如从 "alpha.30" 提取 30)
+        /// </summary>
+        private static int ExtractPreReleaseNumber(string preRelease)
+        {
+            var lastDot = preRelease.LastIndexOf('.');
+            if (lastDot > 0 && lastDot < preRelease.Length - 1)
+            {
+                var numStr = preRelease.Substring(lastDot + 1);
+                if (int.TryParse(numStr, out int num))
+                {
+                    return num;
+                }
+            }
+            return 0;
         }
 
         /// <summary>

@@ -12,7 +12,9 @@
     <Description>SpeedHub - 命令行接口</Description>
     <Copyright>Copyright (c) 2026 Vogadero</Copyright>
     <Authors>Vogadero</Authors>
-    <Version>3.0.0-alpha.1</Version>
+    <Version>3.0.0-alpha.31</Version>
+    <AssemblyVersion>3.0.0.31</AssemblyVersion>
+    <FileVersion>3.0.0.31</FileVersion>
 
     <!-- 应用图标 -->
     <ApplicationIcon>..\..\assets\app-icon.ico</ApplicationIcon>
