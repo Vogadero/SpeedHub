@@ -33,12 +33,11 @@
     <PackageReference Include="Spectre.Console" Version="0.49.1" />
   </ItemGroup>
 
-  <!-- 确保配置文件和静态资源被复制到发布目录 -->
+  <!-- 确保配置文件被复制到发布目录 -->
+  <!-- 注意: wwwroot 静态文件不需要手动链接，SpeedHub.Web 的 ProjectReference 会自动带入 -->
   <ItemGroup>
     <Content Include="..\appsettings.json" CopyToPublishDirectory="PreserveNewest" Link="appsettings.json" />
     <Content Include="..\appsettings\*.json" CopyToPublishDirectory="PreserveNewest" LinkBase="appsettings" />
-    <!-- Web Dashboard 前端静态文件（来自 SpeedHub.Web 项目） -->
-    <Content Include="..\SpeedHub.Web\wwwroot\**\*" CopyToPublishDirectory="PreserveNewest" LinkBase="wwwroot" />
   </ItemGroup>
 
 </Project>
