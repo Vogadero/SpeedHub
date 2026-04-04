@@ -1,13 +1,13 @@
 <p align="center">
-  **English** | <a href="./README.md">中文</a>
+  En | <a href="./README.md">中文</a>
 </p>
 
-# SpeedHub
-
+<h2 align="center">SpeedHub</h2>
 <p align="center">
   <strong>Next-Gen Developer Network Accelerator 🚀</strong><br>
   <em>Accelerate Your Code — Blazing-fast access to GitHub, Google Fonts & more</em>
 </p>
+
 
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet" alt=".NET 8"/>
@@ -16,6 +16,8 @@
 </p>
 
 ---
+
+![Dashboard Preview](docs/SpeedHub.Cli.png)
 
 ## What is SpeedHub?
 
@@ -27,10 +29,10 @@
 Your Computer (Browser / Git / IDE)
         │
         ▼
-   ┌─────────┐
+   ┌──────────┐
    │ SpeedHub │ ◄── Runs locally on port :38457
    │  Engine  │     Intercepts & accelerates traffic
-   └────┬────┘
+   └────┬─────┘
         │ Parallel DNS · CDN Replacement · TLS Optimization
         ▼
    Target Servers (github.com, googleapis.com ...)
@@ -174,24 +176,24 @@ Each JSON file contains domain-specific rules:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   SpeedHub v3.0                     │
-│                                                     │
+┌────────────────────────────────────────────────────┐
+│                   SpeedHub v3.0                    │
+│                                                    │
 │  ┌─────────────┐   ┌──────────────┐                │
 │  │  Web UI     │   │   CLI        │                │
 │  │  (SignalR)  │──▶│ (Spectre)    │                │
 │  └─────────────┘   └──────────────┘                │
-│         │                                         │
-│  ┌──────▼──────┐                                  │
-│  │ Core Engine │                                  │
-│  ├─────────────┤                                  │
-│  │ • DnsResolver│ ← Parallel DNS + Cache + Test   │
+│         │                                          │
+│  ┌──────▼───────┐                                  │
+│  │ Core Engine  │                                  │
+│  ├──────────────┤                                  │
+│  │ • DnsResolver│ ← Parallel DNS + Cache + Test    │
 │  │ • TlsHandler │ ← Custom TLS/SNI Control         │
 │  │ • ProxyEngine│ ← YARP Reverse Proxy             │
-│  └─────────────┘                                  │
-│                                                     │
+│  └──────────────┘                                  │
+│                                                    │
 │  Tech Stack: .NET 8 + ASP.NET Core + YARP + SignalR│
-└─────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────┘
 ```
 
 ## Development Guide

@@ -1,13 +1,13 @@
 <p align="center">
-  <a href="./README.en.md">English</a> | **中文**
+  <a href="./README.en.md">En</a> | 中文
 </p>
 
-# SpeedHub
-
+<h2 align="center">SpeedHub</h2>
 <p align="center">
   <strong>新一代开发者网络加速器 🚀</strong><br>
   <em>Accelerate Your Code — 让 GitHub、Google Fonts 等服务访问飞起来</em>
 </p>
+
 
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet" alt=".NET 8"/>
@@ -16,6 +16,8 @@
 </p>
 
 ---
+
+![Dashboard Preview](docs/SpeedHub.Cli.png)
 
 ## SpeedHub 是什么？
 
@@ -27,10 +29,10 @@
 你的电脑 (浏览器 / Git / IDE)
         │
         ▼
-   ┌─────────┐
-   │ SpeedHub │ ◄── 运行在本地 :38457 端口
+   ┌───────────┐
+   │ SpeedHub  │ ◄── 运行在本地 :38457 端口
    │  代理引擎  │     智能拦截、加速转发
-   └────┬────┘
+   └────┬──────┘
         │ 并行DNS · CDN替换 · TLS优化
         ▼
    目标服务器 (github.com, googleapis.com ...)
@@ -177,20 +179,20 @@ docker run -d \
 ┌─────────────────────────────────────────────────────┐
 │                   SpeedHub v3.0                     │
 │                                                     │
-│  ┌─────────────┐   ┌──────────────┐                │
-│  │  Web UI     │   │   CLI        │                │
-│  │  (SignalR)  │──▶│ (Spectre)    │                │
-│  └─────────────┘   └──────────────┘                │
-│         │                                         │
-│  ┌──────▼──────┐                                  │
-│  │ Core Engine │                                  │
-│  ├─────────────┤                                  │
-│  │ • DnsResolver│ ← 并行DNS + 缓存 + 测速         │
-│  │ • TlsHandler │ ← 自定义TLS/SNI控制             │
-│  │ • ProxyEngine│ ← YARP反向代理                  │
-│  └─────────────┘                                  │
+│  ┌─────────────┐   ┌──────────────┐                 │
+│  │  Web UI     │   │   CLI        │                 │
+│  │  (SignalR)  │──▶│ (Spectre)    │                 │
+│  └─────────────┘   └──────────────┘                 │
+│         │                                           │
+│  ┌──────▼───────┐                                   │
+│  │ Core Engine  │                                   │
+│  ├──────────────┤                                   │
+│  │ • DnsResolver│ ← 并行DNS + 缓存 + 测速             │
+│  │ • TlsHandler │ ← 自定义TLS/SNI控制                 │
+│  │ • ProxyEngine│ ← YARP反向代理                      │
+│  └──────────────┘                                   │
 │                                                     │
-│  技术栈: .NET 8 + ASP.NET Core + YARP + SignalR   │
+│  技术栈: .NET 8 + ASP.NET Core + YARP + SignalR      │
 └─────────────────────────────────────────────────────┘
 ```
 
