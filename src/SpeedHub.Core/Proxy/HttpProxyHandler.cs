@@ -1,9 +1,12 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Buffers;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SpeedHub.Core.Configuration;
 using SpeedHub.Core.DomainResolve;
 using Yarp.ReverseProxy.Forwarder;
@@ -273,7 +276,6 @@ namespace SpeedHub.Core.Proxy
 
             // 方案 2: 直接使用 Request.Body 作为回退
             // 注意：对于 CONNECT 方法，Kestrel 可能将后续数据路由到 Request.Body
-            _logger.LogWarning("无法获取 IRequestBodyPipeFeature，回退到 Request.Body");
             return context.Request.Body;
         }
 
