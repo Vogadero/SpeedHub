@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Buffers;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -158,7 +157,7 @@ namespace SpeedHub.Core.Proxy
 
             // 获取原始输入/输出流（每次调用返回同一个底层流实例）
             // 注意：这是 Kestrel 内部管道的原始 Stream，不是 HTTP Request.Body
-            var rawInputStream = GetRawTransportStream(context);
+            var rawInputStream = GetRawTransportStream(context, _logger);
             var rawOutputStream = context.Response.Body;
 
             if (rawInputStream == null)
@@ -259,23 +258,23 @@ namespace SpeedHub.Core.Proxy
         /// 尝试从 HttpContext 获取底层传输 Stream
         /// 
         /// 优先级：
-        ///   1. IRequestBodyPipeFeature（Kestrel 的请求体管道）
-        ///   2. IRequestLifetimeTraceFeature（可能包含底层连接引用）
-        ///   3. 回退到 Request.Body（最后手段，可能不完美但比没有好）
+        ///   1. IConnectionSocketFeature（Kestrel 底层 TCP Socket）
+        ///   2. 回退到 Request.Body（最后手段）
         /// </summary>
-        private static Stream? GetRawTransportStream(HttpContext context)
+        private static Stream? GetRawTransportStream(HttpContext context, ILogger logger)
         {
-            // 方案 1: IRequestBodyPipeFeature - Kestrel 的原始请求体管道
-            // 这是 Kestrel 内部用于读取 HTTP 请求数据的底层管道
-            var bodyPipeFeature = context.Features.Get<IRequestBodyPipeFeature>();
-            if (bodyPipeFeature?.RequestPipe != null)
+            // 方案 1: IConnectionSocketFeature - Kestrel 底层 TCP Socket
+            // 这是获取原始 TCP 连接最可靠的方式，适用于所有平台和 Kestrel 版本
+            var socketFeature = context.Features.Get<IConnectionSocketFeature>();
+            if (socketFeature?.Socket != null)
             {
-                // 将 PipeReader 包装为 Stream
-                return new PipeReadStream(bodyPipeFeature.RequestPipe);
+                logger.LogDebug("使用 IConnectionSocketFeature 获取底层 TCP Socket");
+                return new NetworkStream(socketFeature.Socket, ownsSocket: false);
             }
 
-            // 方案 2: 直接使用 Request.Body 作为回退
+            // 方案 2: 回退到 Request.Body
             // 注意：对于 CONNECT 方法，Kestrel 可能将后续数据路由到 Request.Body
+            logger.LogWarning("无法获取 IConnectionSocketFeature，回退到 Request.Body");
             return context.Request.Body;
         }
 
@@ -539,101 +538,6 @@ namespace SpeedHub.Core.Proxy
         public long TotalBytesTransferred { get; set; }
 
         public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests : 0;
-    }
-
-    #region ===== PipeReadStream =====
-
-    /// <summary>
-    /// 将 System.IO.Pipelines.PipeReader 包装为 Stream
-    /// 
-    /// 用于从 Kestrel 的 IRequestBodyPipeFeature 获取原始读取流
-    /// 这个流直接从底层 TCP 连接读取数据，不经过 HTTP 解析层
-    /// </summary>
-    public sealed class PipeReadStream : Stream
-    {
-        private readonly PipeReader _reader;
-        private bool _completed;
-        private ReadOnlySequence<byte> _buffer;
-        private long _position;
-
-        public PipeReadStream(PipeReader reader)
-        {
-            _reader = reader ?? throw new ArgumentNullException(nameof(reader));
-        }
-
-        public override bool CanRead => true;
-        public override bool CanWrite => false;
-        public override bool CanSeek => false;
-        public override long Length => throw new NotSupportedException();
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-
-        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        {
-            if (_completed) return 0;
-
-            // 如果当前缓冲区有数据，先消耗
-            while (_buffer.IsEmpty)
-            {
-                var result = await _reader.ReadAsync(cancellationToken);
-                _buffer = result.Buffer;
-
-                if (result.IsCompleted && _buffer.IsEmpty)
-                {
-                    _completed = true;
-                    return 0; // 流结束
-                }
-
-                if (_buffer.IsEmpty)
-                {
-                    // 需要更多数据，告诉 PipeReader 我们已消费了 0 字节
-                    _reader.AdvanceTo(_buffer.Start, _buffer.End);
-                }
-            }
-
-            // 从缓冲区复制数据
-            var toRead = (int)Math.Min(count, _buffer.Length);
-            _buffer.Slice(0, toRead).CopyTo(buffer.AsMemory(offset));
-            
-            // 标记已消费
-            _reader.AdvanceTo(_buffer.GetPosition(toRead));
-            _buffer = _buffer.Slice(toRead);
-            _position += toRead;
-
-            return toRead;
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException("请使用 ReadAsync");
-        }
-
-        public override void Flush() { }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (!_completed)
-            {
-                _completed = true;
-                _reader.Complete();
-            }
-            base.Dispose(disposing);
-        }
-
-        public override void Write(byte[] buffer, int offset, int count) =>
-            throw new NotSupportedException("只读流");
-
-        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
-            throw new NotSupportedException("只读流");
-
-        public override long Seek(long offset, SeekOrigin origin) =>
-            throw new NotSupportedException();
-
-        public override void SetLength(long value) =>
-            throw new NotSupportedException();
     }
 
     #endregion
