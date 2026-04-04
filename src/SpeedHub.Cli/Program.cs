@@ -3,10 +3,12 @@ using Spectre.Console;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SpeedHub.Web.Hubs;
 
 namespace SpeedHub.Cli;
 
@@ -199,11 +201,20 @@ class Program
     }
 
     /// <summary>
-    /// 创建 Host Builder
+    /// 创建 Host Builder（集成 Web Dashboard + 代理核心）
     /// </summary>
     private static IHostBuilder CreateHostBuilder(string[] args)
     {
         return Host.CreateDefaultBuilder(args)
+            .ConfigureWebHostDefaults(webBuilder =>
+            {
+                webBuilder.ConfigureKestrel(options =>
+                {
+                    // Web Dashboard 端口
+                    options.ListenAnyIP(38458);
+                })
+                .UseStartup<SpeedHubStartup>();
+            })
             .ConfigureAppConfiguration((context, config) =>
             {
                 config.SetBasePath(Directory.GetCurrentDirectory());
@@ -223,32 +234,60 @@ class Program
 
                 config.AddEnvironmentVariables();
                 config.AddCommandLine(args);
-            })
-            .ConfigureServices((hostContext, services) =>
-            {
-                services.AddHostedService<Worker>();
             });
     }
 }
 
 /// <summary>
-/// 后台工作服务
+/// ASP.NET Core Startup 类 - 集成 SpeedHub.Web 的所有功能到 CLI
 /// </summary>
-public class Worker : BackgroundService
+public class SpeedHubStartup
 {
-    private readonly ILogger<Worker> _logger;
+    private IConfiguration Configuration { get; }
 
-    public Worker(ILogger<Worker> logger)
+    public SpeedHubStartup(IConfiguration configuration)
     {
-        _logger = logger;
+        Configuration = configuration;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public void ConfigureServices(IServiceCollection services)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        // SpeedHub 核心服务
+        services.AddSpeedHubCore(Configuration);
+
+        // SignalR 实时通信
+        services.AddSignalR();
+
+        // 控制器 API
+        services.AddControllers();
+
+        // CORS
+        services.AddCors(options =>
         {
-            _logger.LogDebug("SpeedHub 正在运行 - {Time}", DateTime.Now);
-            await Task.Delay(10000, stoppingToken);
+            options.AddDefaultPolicy(policy =>
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader();
+            });
+        });
+    }
+
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        if (env.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage();
         }
+
+        app.UseCors();
+        app.UseStaticFiles();
+        app.MapControllers();
+        app.MapHub<StatsHub>("/hubs/stats");
+
+        // API 端点
+        app.MapGet("/api/health", () => new { status = "ok", timestamp = DateTime.UtcNow });
+
+        app.MapFallbackToFile("index.html");
     }
 }
