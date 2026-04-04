@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Net;
 using System.Text.RegularExpressions;
 using DnsClient;
 using Microsoft.Extensions.Caching.Memory;
