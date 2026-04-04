@@ -33,4 +33,10 @@
     <PackageReference Include="Spectre.Console" Version="0.49.1" />
   </ItemGroup>
 
+  <!-- 确保配置文件被复制到发布目录 -->
+  <ItemGroup>
+    <Content Include="..\appsettings.json" CopyToPublishDirectory="PreserveNewest" Link="appsettings.json" />
+    <Content Include="..\appsettings\*.json" CopyToPublishDirectory="PreserveNewest" LinkBase="appsettings" />
+  </ItemGroup>
+
 </Project>

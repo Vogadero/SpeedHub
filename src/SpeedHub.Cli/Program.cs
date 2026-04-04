@@ -85,7 +85,10 @@ class Program
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"\n[red bold]✗[/] [red]启动失败: {ex.Message}[/]");
+            AnsiConsole.MarkupLine($"\n[red bold]✗ 启动失败: {ex.Message}[/]");
+            AnsiConsole.MarkupLine($"[red dim]详情: {ex}[/]");
+            AnsiConsole.MarkupLine("\n[yellow]按任意键退出...[/]");
+            Console.ReadKey(intercept: true);
             return 1;
         }
     }
@@ -209,12 +212,9 @@ class Program
         return Host.CreateDefaultBuilder(args)
             .ConfigureWebHostDefaults(webBuilder =>
             {
-                webBuilder.ConfigureKestrel(options =>
-                {
-                    // Web Dashboard 端口
-                    options.ListenAnyIP(38458);
-                })
-                .UseStartup<SpeedHubStartup>();
+                // 只绑定 Web Dashboard 端口（38458）
+                // 不再额外配置，避免与 appsettings.json 中的 Kestrel 配置冲突
+                webBuilder.UseStartup<SpeedHubStartup>();
             })
             .ConfigureAppConfiguration((context, config) =>
             {
@@ -276,6 +276,21 @@ public class SpeedHubStartup
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        // 全局异常处理 — 防止未捕获异常导致静默崩溃
+        app.UseExceptionHandler(errorApp =>
+        {
+            errorApp.Run(async context =>
+            {
+                var logger = context.RequestServices.GetRequiredService<ILogger<SpeedHubStartup>>();
+                var exception = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+                logger.LogError(exception, "请求发生未处理异常: {Path}", context.Request.Path);
+                context.Response.StatusCode = 500;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(
+                    System.Text.Json.JsonSerializer.Serialize(new { error = "内部错误", message = exception?.Message }));
+            });
+        });
+
         if (env.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
@@ -287,14 +302,29 @@ public class SpeedHubStartup
         app.UseStaticFiles();
 
         app.UseEndpoints(endpoints =>
-        {
-            endpoints.MapControllers();
-            endpoints.MapHub<StatsHub>("/hubs/stats");
+            {
+                endpoints.MapControllers();
+                endpoints.MapHub<StatsHub>("/hubs/stats");
 
-            // API 端点
-            endpoints.MapGet("/api/health", () => new { status = "ok", timestamp = DateTime.UtcNow });
+                // API 端点
+                endpoints.MapGet("/api/health", () => new { status = "ok", timestamp = DateTime.UtcNow });
 
-            endpoints.MapFallbackToFile("index.html");
-        });
+                // 兜底路由：返回友好提示，不依赖静态文件
+                endpoints.MapFallback(context =>
+                {
+                    context.Response.StatusCode = 200;
+                    context.Response.ContentType = "text/html; charset=utf-8";
+                    return context.Response.WriteAsync(@"<!DOCTYPE html>
+<html><head><meta charset='utf-8'><title>SpeedHub Dashboard</title>
+<style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0f1c;color:#e0e7ff;margin:0}
+.card{background:rgba(30,41,82,0.8);border-radius:16px;padding:40px;text-align:center;border:1px solid rgba(99,102,241,0.3)}
+h1{color:#818cf8;margin-bottom:12px}.status{color:#34d399}.hint{color:#94a3b8;font-size:14px;margin-top:16px}</style></head>
+<body><div class='card'>
+<h1>🚀 SpeedHub</h1><p class='status'>● 运行中 v3.0-alpha.1</p>
+<p class='hint'>Web Dashboard 正在开发中，敬请期待</p>
+<p class='hint'>代理端口 :38457 | API: <a href='/api/health' style='color:#818cf8'>/api/health</a></p>
+</div></body></html>");
+                });
+            });
     }
 }
