@@ -23,8 +23,12 @@ builder.Host.UseSerilog();
 // 1. SpeedHub 核心服务
 builder.Services.AddSpeedHubCore(builder.Configuration);
 
-// 2. SignalR 实时通信
-builder.Services.AddSignalR();
+// 2. SignalR 实时通信（配置 camelCase 序列化）
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // 3. 控制器（RESTful API）
 builder.Services.AddControllers();
