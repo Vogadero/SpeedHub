@@ -16,48 +16,48 @@ namespace SpeedHub.Core.DomainResolve;
 /// </summary>
 public class ParallelDnsResolver : IDnsResolver
 {
-    private readonly IOptions<SpeedHubConfig> _config;
+    private readonly IOptions<DnsResolverConfig> _config;
     private readonly ILogger<ParallelDnsResolver> _logger;
     private readonly IMemoryCache _cache;
     private readonly LookupClient _dnsClient;
-    
+
     // IP延迟历史记录（用于智能选择）
     private readonly ConcurrentDictionary<string, IpLatencyHistory> _ipLatencyHistory = new();
-    
+
     /// <summary>
     /// DNS 解析统计信息
     /// </summary>
     public DnsStats Stats { get; } = new();
 
     public ParallelDnsResolver(
-        IOptions<SpeedHubConfig> config,
+        IOptions<DnsResolverConfig> config,
         ILogger<ParallelDnsResolver> logger,
         IMemoryCache cache)
     {
         _config = config;
         _logger = logger;
         _cache = cache;
-        
+
         // 配置DNS客户端
         var dnsServers = config.Value.FallbackDns
             .Select(s => new IPEndPoint(
                 IPAddress.Parse(s.Split(':')[0]),
                 int.Parse(s.Split(':')[1])))
             .ToArray();
-        
+
         _dnsClient = new LookupClient(new LookupClientOptions(dnsServers)
         {
-            UseCache = false,  // 我们自己管理缓存
+            UseCache = false, // 我们自己管理缓存
             Timeout = TimeSpan.FromMilliseconds(config.Value.DnsQueryTimeoutMs),
-            Retries = 0,       // 不重试，快速失败
+            Retries = 0, // 不重试，快速失败
         });
     }
 
-    /// <inheritdoc />
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<IPAddress>> ResolveAsync(string domain, int port = 443)
     {
         Stats.TotalRequests++;
-        
+
         // 1. 先检查本地缓存
         var cacheKey = $"dns:{domain}:{port}";
         if (_cache.TryGetValue(cacheKey, out CachedIpResult? cached) && cached != null)
@@ -65,18 +65,18 @@ public class ParallelDnsResolver : IDnsResolver
             Stats.CacheHits++;
             return cached.IpAddresses;
         }
-        
+
         // 2. 并行查询所有DNS服务器
         var sw = Stopwatch.StartNew();
         var results = await ResolveWithFallbackAsync(domain);
         sw.Stop();
-        
+
         if (results.Count == 0)
         {
             Stats.FailedRequests++;
             throw new DnsResolutionException($"无法解析域名: {domain}");
         }
-        
+
         // 3. 如果启用IP测速，选择最优IP
         IReadOnlyList<IPAddress> finalIps;
         if (_config.Value.EnableIpSpeedTest && results.Count > 1)
@@ -88,32 +88,28 @@ public class ParallelDnsResolver : IDnsResolver
         {
             finalIps = results;
         }
-        
+
         // 4. 写入缓存
         var cacheEntry = new CachedIpResult(finalIps, DateTime.UtcNow);
-        _cache.Set(cacheKey, cacheEntry, 
-            TimeSpan.FromMinutes(_config.Value.DnsCacheTtlMinutes));
-        
+        _cache.Set(cacheKey, cacheEntry, TimeSpan.FromMinutes(_config.Value.DnsCacheTtlMinutes));
+
         // 更新统计
         var elapsedMs = sw.ElapsedMilliseconds;
-        Stats.AvgResolutionTimeMs = 
-            (Stats.AvgResolutionTimeMs * (Stats.SuccessfulRequests - 1) + elapsedMs)
-            / Math.Max(1, Stats.SuccessfulRequests);
+        Stats.AvgResolutionTimeMs = (Stats.AvgResolutionTimeMs * (Stats.SuccessfulRequests - 1) + elapsedMs) / Math.Max(1, Stats.SuccessfulRequests);
         Stats.SuccessfulRequests++;
-        
-        _logger.LogInformation("域名解析完成: {Domain}:{Port} → [{Ips}] 耗时: {ElapsedMs}ms",
-            domain, port, string.Join(", ", finalIps.Select(ip => ip.ToString())), elapsedMs);
-        
+
+        _logger.LogInformation("域名解析完成: {Domain}:{Port} → [{Ips}] 耗时: {ElapsedMs}ms", domain, port, string.Join(", ", finalIps.Select(ip => ip.ToString())), elapsedMs);
+
         return finalIps;
     }
-    
+
     /// <summary>
     /// 并行查询所有DNS服务器，返回第一个成功的结果
     /// </summary>
     private async Task<List<IPAddress>> ResolveWithFallbackAsync(string domain)
     {
         using var cts = new CancellationTokenSource(_config.Value.DnsQueryTimeoutMs * 2);
-        
+
         // 并行发起所有DNS查询
         var queryTasks = _config.Value.FallbackDns.Select(async dnsEndpoint =>
         {
@@ -122,52 +118,45 @@ public class ParallelDnsResolver : IDnsResolver
                 var parts = dnsEndpoint.Split(':');
                 var serverIp = IPAddress.Parse(parts[0]);
                 var serverPort = int.Parse(parts[1]);
-                
-                var result = await _dnsClient.QueryAsync(domain, QueryType.A,
-                    new DnsQueryOptions
-                    {
-                        RequestDnsSecRecords = false,
-                    }, cancellationToken: cts.Token);
-                
+
+                // DnsClient QueryAsync 签名:
+                // QueryAsync(string query, QueryType queryType, QueryClass queryClass = IN, CancellationToken cancellationToken = default)
+                var result = await _dnsClient.QueryAsync(domain, QueryType.A, cancellationToken: cts.Token);
+
                 if (result.HasError || result.Answers.Count == 0)
                 {
-                    _logger.LogWarning("DNS查询失败: {Dns}@{Server} → {Error}",
-                        domain, dnsEndpoint, result.ErrorMessage ?? "无结果");
+                    _logger.LogWarning("DNS查询失败: {Dns}@{Server} → {Error}", domain, dnsEndpoint, result.ErrorMessage ?? "无结果");
                     return null;
                 }
-                
+
                 var ips = result.Answers.ARecords()
                     .Select(r => r.Address)
                     .ToList();
-                    
+
                 if (ips.Count > 0)
                 {
-                    _logger.LogDebug("DNS查询成功: {Domain}@{Server} → {Ips}",
-                        domain, dnsEndpoint, string.Join(", ", ips));
+                    _logger.LogDebug("DNS查询成功: {Domain}@{Server} → {Ips}", domain, dnsEndpoint, string.Join(", ", ips));
                     return ips;
                 }
-                
+
                 return null;
             }
             catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
             {
-                _logger.LogWarning("DNS查询超时: {Domain}@{Server}",
-                    domain, dnsEndpoint);
+                _logger.LogWarning("DNS查询超时: {Domain}@{Server}", domain, dnsEndpoint);
                 return null;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "DNS查询异常: {Domain}@{Server}",
-                    domain, dnsEndpoint);
+                _logger.LogWarning(ex, "DNS查询异常: {Domain}@{Server}", domain, dnsEndpoint);
                 return null;
             }
         }).ToArray();
-        
+
         // 等待任意一个成功
         while (!cts.IsCancellationRequested && queryTasks.Any())
         {
             var completedTask = await Task.WhenAny(queryTasks);
-            
             if (completedTask.IsCompletedSuccessfully)
             {
                 var result = await completedTask;
@@ -177,14 +166,14 @@ public class ParallelDnsResolver : IDnsResolver
                     return result;
                 }
             }
-            
+
             // 移除已完成的任务
             queryTasks = queryTasks.Where(t => t != completedTask).ToArray();
         }
-        
+
         return new List<IPAddress>();
     }
-    
+
     /// <summary>
     /// 基于历史延迟数据选择最优IP
     /// </summary>
@@ -199,12 +188,10 @@ public class ParallelDnsResolver : IDnsResolver
                 using var tcp = new TcpClient();
                 await tcp.ConnectAsync(ip, port);
                 sw.Stop();
-                
                 var latency = sw.ElapsedMilliseconds;
-                
+
                 // 记录到历史
                 UpdateLatencyHistory(ip, latency, success: true);
-                
                 return (Ip: ip, Latency: latency, Success: true);
             }
             catch
@@ -213,9 +200,9 @@ public class ParallelDnsResolver : IDnsResolver
                 return (Ip: ip, Latency: -1, Success: false);
             }
         }).ToArray();
-        
+
         var results = Task.WhenAll(testTasks).GetAwaiter().GetResult();
-        
+
         // 选择成功率最高且延迟最低的IP
         var bestResults = results
             .Where(r => r.Success)
@@ -227,7 +214,7 @@ public class ParallelDnsResolver : IDnsResolver
             .ThenBy(r => r.Latency)
             .Select(r => r.Ip)
             .ToList();
-        
+
         // 保持原始顺序，但把最优IP放到第一位
         if (bestResults.Count > 0 && !bestResults[0].Equals(ips[0]))
         {
@@ -236,10 +223,10 @@ public class ParallelDnsResolver : IDnsResolver
             orderedIps.Insert(0, bestResults[0]);
             return orderedIps;
         }
-        
+
         return ips;
     }
-    
+
     /// <summary>
     /// 更新IP延迟历史记录
     /// </summary>
@@ -260,7 +247,7 @@ public interface IDnsResolver
     /// 异步解析域名
     /// </summary>
     Task<IReadOnlyList<IPAddress>> ResolveAsync(string domain, int port = 443);
-    
+
     /// <summary>
     /// 统计信息
     /// </summary>
@@ -278,7 +265,7 @@ public class DnsStats
     public long CacheHits { get; set; }
     public long SpeedTestCount { get; set; }
     public double AvgResolutionTimeMs { get; set; }
-    
+
     public double CacheHitRate => TotalRequests > 0 ? (double)CacheHits / TotalRequests : 0;
     public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests : 0;
 }
@@ -298,7 +285,7 @@ public class IpLatencyHistory
     private int _successCount;
     private int _failCount;
     private object _lock = new();
-    
+
     public void Record(long latencyMs, bool success)
     {
         lock (_lock)
@@ -316,7 +303,7 @@ public class IpLatencyHistory
             }
         }
     }
-    
+
     public double? AverageLatency
     {
         get
@@ -327,7 +314,7 @@ public class IpLatencyHistory
             }
         }
     }
-    
+
     public double SuccessRate
     {
         get
@@ -347,7 +334,7 @@ public class IpLatencyHistory
 public class DnsResolutionException : Exception
 {
     public string Domain { get; }
-    
+
     public DnsResolutionException(string message, string? domain = null) : base(message)
     {
         Domain = domain ?? string.Empty;

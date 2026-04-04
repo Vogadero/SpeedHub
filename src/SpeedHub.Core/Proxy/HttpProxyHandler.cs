@@ -21,6 +21,7 @@ public class HttpProxyHandler
     private readonly IDnsResolver _dnsResolver;
     private readonly IOptions<SpeedHubConfig> _config;
     private readonly ILogger<HttpProxyHandler> _logger;
+    private readonly HttpMessageInvoker _httpClient;
 
     /// <summary>
     /// 代理统计信息
@@ -37,6 +38,15 @@ public class HttpProxyHandler
         _dnsResolver = dnsResolver;
         _config = config;
         _logger = logger;
+
+        // 创建 HttpClient 用于 YARP 转发（带超时和连接池配置）
+        var httpClientHandler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+            MaxConnectionsPerServer = int.MaxValue,
+        };
+        _httpClient = new HttpMessageInvoker(httpClientHandler);
     }
 
     /// <summary>
@@ -78,17 +88,22 @@ public class HttpProxyHandler
             var scheme = context.Request.Scheme;
             var destinationPrefix = $"{scheme}://{targetIp}:{port}";
 
-            // 5. 创建带自定义Host头的Transformer
+            // 5. 创建自定义Transformer（设置正确的Host头）
             var transform = new CustomHeaderTransform(targetDomain);
 
-            // 6. 使用YARP转发请求 (2参数: HttpContext, destinationPrefix)
-            // Transformer 通过 ForwarderRequestConfig 或中间件配置传入
-            // 这里用最简形式：2个参数，默认transform
-            var error = await _forwarder.SendAsync(context, destinationPrefix);
+            // 6. 使用YARP转发请求（完整5参数签名）
+            // SendAsync(context, destinationPrefix, httpClient, requestConfig, transformer)
+            var requestConfig = new ForwarderRequestConfig
+            {
+                ActivityTimeout = TimeSpan.FromMinutes(1),
+            };
 
-            // 手动设置 Host 头（在转发后/前通过 header 操作）
-            // 注意：由于 SendAsync 是2参数版无法传transform，
-            // 我们需要在请求级别处理。这里先让编译通过。
+            var error = await _forwarder.SendAsync(
+                context,
+                destinationPrefix,
+                _httpClient,
+                requestConfig,
+                transform);
 
             sw.Stop();
 
@@ -186,7 +201,7 @@ public class HttpProxyHandler
     {
         var regexPattern = "^" + Regex.Escape(pattern)
             .Replace(@"\*", ".*")
-            .Replace(@"\.", @"\.") + "$";
+            .Replace @"\.", @"\.") + "$";
 
         return Regex.IsMatch(input, regexPattern, RegexOptions.IgnoreCase);
     }
@@ -221,7 +236,7 @@ public class HttpProxyHandler
 }
 
 /// <summary>
-/// 自定义HTTP转换器 - 设置正确的Host头（保留供后续集成使用）
+/// 自定义HTTP转换器 - 设置正确的Host头
 /// </summary>
 internal class CustomHeaderTransform : HttpTransformer
 {
