@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using DnsClient;
 using Microsoft.Extensions.Caching.Memory;
@@ -96,7 +98,7 @@ public class ParallelDnsResolver : IDnsResolver
         var elapsedMs = sw.ElapsedMilliseconds;
         Stats.AvgResolutionTimeMs = 
             (Stats.AvgResolutionTimeMs * (Stats.SuccessfulRequests - 1) + elapsedMs)
-            / Stats.SuccessfulRequests;
+            / Math.Max(1, Stats.SuccessfulRequests);
         Stats.SuccessfulRequests++;
         
         _logger.LogInformation("域名解析完成: {Domain}:{Port} → [{Ips}] 耗时: {ElapsedMs}ms",
@@ -110,7 +112,7 @@ public class ParallelDnsResolver : IDnsResolver
     /// </summary>
     private async Task<List<IPAddress>> ResolveWithFallbackAsync(string domain)
     {
-        var cts = new CancellationTokenSource(_config.Value.DnsQueryTimeoutMs * 2);
+        using var cts = new CancellationTokenSource(_config.Value.DnsQueryTimeoutMs * 2);
         
         // 并行发起所有DNS查询
         var queryTasks = _config.Value.FallbackDns.Select(async dnsEndpoint =>
@@ -122,7 +124,7 @@ public class ParallelDnsResolver : IDnsResolver
                 var serverPort = int.Parse(parts[1]);
                 
                 var result = await _dnsClient.QueryAsync(domain, QueryType.A,
-                    new QueryOptions
+                    new DnsQueryAndServerConfig
                     {
                         RequestDnsSecRecords = false,
                     }, cancellationToken: cts.Token);
@@ -195,9 +197,8 @@ public class ParallelDnsResolver : IDnsResolver
             {
                 var sw = Stopwatch.StartNew();
                 using var tcp = new TcpClient();
-                await tcp.ConnectAsync(ip, port, TimeSpan.FromMilliseconds(2000));
+                await tcp.ConnectAsync(ip, port);
                 sw.Stop();
-                tcp.Close();
                 
                 var latency = sw.ElapsedMilliseconds;
                 
