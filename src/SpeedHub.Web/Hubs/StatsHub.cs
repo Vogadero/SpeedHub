@@ -44,6 +44,10 @@ namespace SpeedHub.Web.Hubs
 
     /// <summary>
     /// 统计推送服务（定时向所有连接的客户端推送数据）
+    /// 
+    /// ⚠️ 此服务必须在 Startup.ConfigureServices 中注册：
+    ///   services.AddHostedService&lt;StatsPushService&gt;();
+    /// 否则 Timer 永远不会启动，前端不会收到实时更新。
     /// </summary>
     public class StatsPushService : IHostedService, IDisposable
     {
@@ -64,6 +68,8 @@ namespace SpeedHub.Web.Hubs
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("StatsPushService 启动 - 每2秒推送统计数据");
+
             // 每2秒推送一次统计数据
             _timer = new Timer(2000);
             _timer.Elapsed += async (_, _) =>
@@ -78,6 +84,7 @@ namespace SpeedHub.Web.Hubs
                     _logger.LogError(ex, "推送统计数据失败");
                 }
             };
+            _timer.AutoReset = true;
             _timer.Start();
             
             return Task.CompletedTask;
@@ -85,6 +92,7 @@ namespace SpeedHub.Web.Hubs
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("StatsPushService 停止");
             _timer?.Stop();
             _timer?.Dispose();
             return Task.CompletedTask;

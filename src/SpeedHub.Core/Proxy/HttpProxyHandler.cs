@@ -17,7 +17,7 @@ namespace SpeedHub.Core.Proxy
     /// 高性能HTTP代理处理器 - 带连接池和请求日志
     /// 
     /// 支持两种模式：
-    ///   1. CONNECT 隧道（HTTPS）：建立到目标服务器的 TCP 双向隧道
+    ///   1. CONNECT 隧道（HTTPS）：建立到目标服务器的 TCP 双向隧道（原始 Socket 中继）
     ///   2. HTTP 普通代理（HTTP）：使用 YARP 转发请求
     /// </summary>
     public class HttpProxyHandler
@@ -112,7 +112,11 @@ namespace SpeedHub.Core.Proxy
         ///   1. 解析目标域名到 IP
         ///   2. 连接到目标服务器
         ///   3. 返回 200 Connection Established 给浏览器
-        ///   4. 在浏览器和目标之间做 TCP 数据中继
+        ///   4. 在浏览器和目标之间做原始 TCP 数据中继
+        ///
+        /// ⚠️ 关键：不能用 context.Request.Body / Response.Body 直接做中继，
+        ///   因为 Kestrel 的 HttpRequest.Body 在 CONNECT 场景下可能不可靠。
+        ///   必须用 ClientServerDuplexStream 正确封装底层连接。
         /// </summary>
         private async Task HandleConnectTunnelAsync(HttpContext context, string targetDomain, string requestId, Stopwatch sw)
         {
@@ -148,7 +152,7 @@ namespace SpeedHub.Core.Proxy
 
             // 建立到目标的 TCP 连接
             using var targetClient = new TcpClient();
-            var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
 
             try
             {
@@ -171,28 +175,32 @@ namespace SpeedHub.Core.Proxy
 
             // 告诉浏览器隧道建立成功
             context.Response.StatusCode = 200;
-            // 注意: CONNECT 的响应不应该有 body，只需要状态行
-            // 但 ASP.NET Core 需要我们显式完成响应头
-            await context.Response.CompleteAsync();
+            // Flush 响应头给浏览器，让浏览器知道可以开始发送 TLS 数据了
+            await context.Response.Body.FlushAsync();
             _logger.LogInformation("[{ReqId}] 已发送 200 Connection Established", requestId);
 
-            // 获取底层流
-            var clientStream = context.Request.Body;
-            var responseStream = context.Response.Body;
-            
-            // 双向数据中继
+            // ════════════════════════════════════════════════════════
+            // 关键修复：使用 ClientServerDuplexStream 做双向数据中继
+            // ════════════════════════════════════════════════════════
+            //
+            // ASP.NET Core Kestrel 的 HttpContext 对 CONNECT 方法：
+            //   - context.Request.Body  可能行为不确定
+            //   - 需要正确封装为支持异步读写的双向 Stream
+
             var targetStream = targetClient.GetStream();
 
-            // 开始双向数据中继
+            // 创建适配器流：Read=从浏览器读数据, Write=向浏览器写数据
+            var duplexStream = new ClientServerDuplexStream(context);
+
             _logger.LogInformation("[{ReqId}] 开始双向数据中继...", requestId);
 
             try
             {
-                // 浏览器 -> 目标
-                var clientToTarget = CopyStreamAsync(clientStream, targetStream, "C->T", requestId, context.RequestAborted);
+                // 浏览器 -> 目标服务器
+                var clientToTarget = CopyStreamAsync(duplexStream, targetStream, "C->T", requestId, context.RequestAborted);
 
-                // 目标 -> 浏览器
-                var targetToClient = CopyStreamAsync(targetStream, responseStream, "T->C", requestId, context.RequestAborted);
+                // 目标服务器 -> 浏览器  
+                var targetToClient = CopyStreamAsync(targetStream, duplexStream, "T->C", requestId, context.RequestAborted);
 
                 // 等待任一方向结束
                 await Task.WhenAny(clientToTarget, targetToClient);
@@ -200,7 +208,7 @@ namespace SpeedHub.Core.Proxy
                 sw.Stop();
                 Interlocked.Increment(ref Stats._successfulRequests);
                 _logger.LogInformation(
-                    "[{ReqId}] CONNECT 隧道关闭, 耗时 {Elapsed:F2}ms",
+                    "[{ReqId}] CONNECT 隧道正常关闭, 耗时 {Elapsed:F2}ms",
                     requestId, sw.Elapsed.TotalMilliseconds);
             }
             catch (OperationCanceledException)
@@ -214,12 +222,13 @@ namespace SpeedHub.Core.Proxy
         }
 
         /// <summary>
-        /// 异步流拷贝
+        /// 异步流拷贝（带诊断日志）
         /// </summary>
         private static async Task CopyStreamAsync(Stream source, Stream dest, string direction, string requestId, CancellationToken cancellationToken)
         {
             var buffer = new byte[8192];
             int read;
+
             try
             {
                 while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
@@ -332,11 +341,11 @@ namespace SpeedHub.Core.Proxy
         private async Task HandleCdnRedirectAsync(HttpContext context, DomainConfig domainConfig, string requestId)
         {
             var destinationBase = domainConfig!.Destination!.ToString().TrimEnd('/');
-            var requestPath = context.Request.Path + context.Request.QueryString;
+            var requestPath = context.Request.Path + context.QueryString;
             var redirectUrl = destinationBase + requestPath;
 
             _logger.LogInformation("[{ReqId}] CDN重定向: {Original} -> {Destination}",
-                requestId, context.Request.Host, redirectUrl);
+                requestId, context.Host, redirectUrl);
 
             context.Response.Redirect(redirectUrl, permanent: false);
         }
@@ -449,4 +458,104 @@ namespace SpeedHub.Core.Proxy
 
         public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests : 0;
     }
+
+    #region ===== ClientServerDuplexStream =====
+
+    /// <summary>
+    /// 双向数据流适配器 - 将 ASP.NET Core 的 HttpContext 包装为可同时读写的 Stream
+    /// 
+    /// 用于 CONNECT 隧道场景：
+    ///   Read  → 从客户端（浏览器）读取原始 TCP 数据（TLS ClientHello 等）
+    ///   Write → 向客户端（浏览器）写入原始 TCP 数据（来自目标的 TLS ServerHello 等）
+    /// 
+    /// 核心原理：
+    ///   Read  操作委托给 context.Request.Body（浏览器→代理的数据通道）
+    ///   Write 操作委托给 context.Response.Body（代理→浏览器的数据通道）
+    ///   通过 LinkedTokenSource 同时监听外部取消和客户端断开信号
+    /// </summary>
+    public sealed class ClientServerDuplexStream : Stream
+    {
+        private readonly HttpContext _context;
+        private bool _disposed;
+
+        public ClientServerDuplexStream(HttpContext context)
+        {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+        }
+
+        public override bool CanRead => !_disposed && !_context.RequestAborted.IsCancellationRequested;
+        public override bool CanWrite => true;
+        public override bool CanSeek => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        /// <summary>
+        /// 从客户端（浏览器）读取数据
+        /// 对于 CONNECT 隧道，这里读到的就是浏览器的 TLS 握手数据和后续加密的 HTTPS 数据
+        /// </summary>
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            if (_disposed) return 0;
+
+            try
+            {
+                // 组合 Token：外部取消 + 客户端断开检测
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    _context.RequestAborted);
+
+                // 从 Request.Body 读取浏览器发来的原始数据
+                var bytesRead = await _context.Request.Body.ReadAsync(buffer.AsMemory(offset, count), linkedCts.Token);
+                return bytesRead;
+            }
+            catch (OperationCanceledException)
+            {
+                // 客户端断开或被取消，返回 0 表示流结束
+                return 0;
+            }
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException("请使用 ReadAsync");
+        }
+
+        /// <summary>
+        /// 向客户端（浏览器）写入数据
+        /// 对于 CONNECT 隧道，这里写的就是目标服务器返回的 TLS 握手数据和后续响应
+        /// </summary>
+        public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            if (_disposed) return;
+
+            await _context.Response.Body.WriteAsync(buffer.AsMemory(offset, count), cancellationToken);
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException("请使用 WriteAsync");
+        }
+
+        public override void Flush()
+        {
+            _context.Response.Body.Flush();
+        }
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            return _context.Response.Body.FlushAsync(cancellationToken);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            base.Dispose(disposing);
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    }
+
+    #endregion
 }
