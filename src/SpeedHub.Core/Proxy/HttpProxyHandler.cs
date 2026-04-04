@@ -539,6 +539,4 @@ namespace SpeedHub.Core.Proxy
 
         public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests : 0;
     }
-
-    #endregion
 }
