@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -78,12 +80,9 @@ public class HttpProxyHandler
             
             // 4. 构建目标地址
             var scheme = context.Request.Scheme;
-            var targetUrl = $"{scheme}://{targetIp}:{port}{context.Request.Path}{context.Request.QueryString}";
-            
-            // 5. 设置转发头（保持原始Host）
             var destinationPrefix = $"{scheme}://{targetIp}:{port}";
             
-            // 6. 使用YARP转发请求
+            // 5. 使用YARP转发请求（2参数版本）
             var error = await _forwarder.SendAsync(context, destinationPrefix, 
                 CreateForwarderRequestConfig(targetDomain, domainConfig));
             
@@ -91,9 +90,9 @@ public class HttpProxyHandler
             
             if (error != ForwarderError.None)
             {
-                Stats.FailedRequests++;
+                Interlocked.Increment(ref Stats._failedRequests);
                 _logger.LogWarning("[{RequestId}] 代理转发错误: {Error} {Target}",
-                    requestId, error, targetUrl);
+                    requestId, error, destinationPrefix);
                 
                 context.Response.StatusCode = (int)GetStatusCodeFromError(error);
                 await context.Response.WriteAsJsonAsync(new
@@ -101,7 +100,7 @@ public class HttpProxyHandler
             }
             else
             {
-                Stats.SuccessfulRequests++;
+                Interlocked.Increment(ref Stats._successfulRequests);
                 _logger.LogInformation(
                     "[{RequestId}] {Method} {Url} responded {Status} in {Elapsed:F2}ms",
                     requestId,
@@ -114,7 +113,7 @@ public class HttpProxyHandler
         catch (DnsResolutionException ex)
         {
             sw.Stop();
-            Stats.DnsErrors++;
+            Interlocked.Increment(ref Stats._dnsErrors);
             
             _logger.LogError(ex, "[{RequestId}] DNS解析失败: {Domain}", requestId, targetDomain);
             context.Response.StatusCode = 502;
@@ -123,7 +122,7 @@ public class HttpProxyHandler
         catch (Exception ex)
         {
             sw.Stop();
-            Stats.Errors++;
+            Interlocked.Increment(ref Stats._errors);
             
             _logger.LogError(ex, "[{RequestId}] 代理异常: {Target}", requestId, targetDomain);
             context.Response.StatusCode = 502;
@@ -194,27 +193,21 @@ public class HttpProxyHandler
     /// </summary>
     private ForwarderRequestConfig CreateForwarderRequestConfig(string host, DomainConfig? config)
     {
+        // YARP 2.x: 使用 HttpTransformer 替代 HttpRequestOptions
+        var transform = new CustomHeaderTransform(host);
         var requestConfig = new ForwarderRequestConfig
         {
             Version = new Version(2, 0),  // HTTP/2
-        };
-        
-        // 自定义请求转换：设置正确的Host头和TLS配置
-        requestConfig.HttpRequestOptions = options =>
-        {
-            // 保持原始Host
-            options.Request.Headers.Host = host;
+            Transform = transform,
         };
         
         return requestConfig;
     }
-    
+
     private static HttpStatusCode GetStatusCodeFromError(ForwarderError error) =>
         error switch
         {
-            ForwarderError.UpgradeRequestRequired => HttpStatusCode.UpgradeRequired,
             ForwarderError.NoAvailableDestinations => HttpStatusCode.BadGateway,
-            ForwarderError.OperationCanceled => StatusCodes.Status504GatewayTimeout,
             _ => HttpStatusCode.BadGateway,
         };
 
@@ -232,7 +225,7 @@ public class HttpProxyHandler
         
         // 更新平均响应时间
         var currentAvg = Stats.AvgResponseTimeMs;
-        var total = Stats.TotalRequests;
+        var total = Math.Max(1, Stats.TotalRequests);
         Stats.AvgResponseTimeMs = currentAvg + ((elapsedMs - currentAvg) / total);
         
         // 更新带宽统计
@@ -241,7 +234,35 @@ public class HttpProxyHandler
 }
 
 /// <summary>
-/// 代理统计信息
+/// 自定义HTTP转换器 - 设置正确的Host头
+/// </summary>
+internal class CustomHeaderTransform : HttpTransformer
+{
+    private readonly string _targetHost;
+
+    public CustomHeaderTransform(string targetHost)
+    {
+        _targetHost = targetHost;
+    }
+
+    public override async ValueTask<TransformResult> TransformRequestAsync(
+        HttpContext httpRequestContext,
+        HttpRequestMessage proxyRequest,
+        string destinationPrefix,
+        CancellationToken cancellationToken)
+    {
+        // 调用基类先做默认转换
+        var result = await base.TransformRequestAsync(httpRequestContext, proxyRequest, destinationPrefix, cancellationToken);
+
+        // 设置原始 Host 头
+        proxyRequest.Headers.Host = _targetHost;
+
+        return result;
+    }
+}
+
+/// <summary>
+/// 代理统计信息 - 使用内部字段支持线程安全更新
 /// </summary>
 public class ProxyStats
 {
@@ -256,7 +277,7 @@ public class ProxyStats
     public long FailedRequests => _failedRequests;
     public long DnsErrors => _dnsErrors;
     public long Errors => _errors;
-    public double AvgResponseTimeMs { get; internal set; }
+    public double AvgResponseTimeMs { get; set; }
     public long TotalBytesTransferred { get; set; }
     
     public double SuccessRate => TotalRequests > 0 ? (double)SuccessfulRequests / TotalRequests : 0;
