@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SpeedHub.Core.Configuration;
+using SpeedHub.Core.DomainResolve;
 
 namespace SpeedHub.Core.Proxy
 {
