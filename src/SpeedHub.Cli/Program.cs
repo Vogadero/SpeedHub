@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SpeedHub.Core;
 using SpeedHub.Web.Hubs;
 
 namespace SpeedHub.Cli;
@@ -280,14 +281,20 @@ public class SpeedHubStartup
             app.UseDeveloperExceptionPage();
         }
 
+        app.UseRouting();
+
         app.UseCors();
         app.UseStaticFiles();
-        app.MapControllers();
-        app.MapHub<StatsHub>("/hubs/stats");
 
-        // API 端点
-        app.MapGet("/api/health", () => new { status = "ok", timestamp = DateTime.UtcNow });
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+            endpoints.MapHub<StatsHub>("/hubs/stats");
 
-        app.MapFallbackToFile("index.html");
+            // API 端点
+            endpoints.MapGet("/api/health", () => new { status = "ok", timestamp = DateTime.UtcNow });
+
+            endpoints.MapFallbackToFile("index.html");
+        });
     }
 }
