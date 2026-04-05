@@ -1,4 +1,4 @@
-# SpeedHub Release Pipeline
+# SpeedHub Release Pipeline - Multi-platform
 name: Release
 
 on:
@@ -6,102 +6,160 @@ on:
     tags:
       - 'v*'
 
-jobs:
-  build-windows:
-    name: Build Windows (x64)
-    runs-on: windows-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      
-      - name: Publish Windows x64
-        run: |
-          dotnet publish src/SpeedHub.Cli/SpeedHub.Cli.csproj `
-            -c Release `
-            -r win-x64 `
-            --self-contained true `
-            -p:PublishSingleFile=true `
-            -p:EnableCompressionInSingleFile=true `
-            -o publish/win-x64
-      
-      - name: Create ZIP
-        run: |
-          Compress-Archive -Path publish/win-x64/* -DestinationPath SpeedHub-win-x64.zip
-      
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: speedhub-win-x64
-          path: SpeedHub-win-x64.zip
+permissions:
+  contents: write
 
-  build-linux:
-    name: Build Linux (x64)
-    runs-on: ubuntu-latest
+jobs:
+  build:
+    name: Build ${{ matrix.os }} (${{ matrix.runtime }})
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+            artifact: SpeedHub-win-x64.zip
+          - os: ubuntu-latest
+            runtime: linux-x64
+            artifact: SpeedHub-linux-x64.tar.gz
+          - os: macos-latest
+            runtime: osx-x64
+            artifact: SpeedHub-osx-x64.zip
+          - os: macos-latest
+            runtime: osx-arm64
+            artifact: SpeedHub-osx-arm64.zip
+    
+    runs-on: ${{ matrix.os }}
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup .NET
+      - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
       
-      - name: Publish Linux x64
+      - name: Publish ${{ matrix.runtime }}
+        shell: bash
         run: |
           dotnet publish src/SpeedHub.Cli/SpeedHub.Cli.csproj \
             -c Release \
-            -r linux-x64 \
+            -r ${{ matrix.runtime }} \
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:EnableCompressionInSingleFile=true \
-            -o publish/linux-x64
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o publish/${{ matrix.runtime }}
       
-      - name: Create tarball
+      # 复制配置文件到发布目录
+      - name: Copy config files
+        shell: bash
         run: |
-          cd publish/linux-x64
-          tar -czf ../../SpeedHub-linux-x64.tar.gz *
+          cp appsettings.json publish/${{ matrix.runtime }}/ || true
+          cp -r appsettings publish/${{ matrix.runtime }}/ || true
       
-      - name: Upload artifact
+      # 打包 (Windows 用 PowerShell, Linux/macOS 用 bash)
+      - name: Package artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $src = "publish/${{ matrix.runtime }}"
+          Compress-Archive -Path "$($src)\*" -DestinationPath "${{ matrix.artifact }}"
+      
+      - name: Package artifacts (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd publish/${{ matrix.runtime }}
+
+          if [[ "${{ matrix.artifact }}" == *.tar.gz ]]; then
+            tar -czvf "../../${{ matrix.artifact }}" .
+          else
+            zip -r "../../${{ matrix.artifact }}" .
+          fi
+          cd -
+      
+      # 上传到 GitHub Actions Artifact（不是 Release Asset）
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: speedhub-linux-x64
-          path: SpeedHub-linux-x64.tar.gz
+          name: ${{ matrix.runtime }}
+          path: ${{ matrix.artifact }}
+          retention-days: 1
+          if-no-files-found: error
 
-  create-release:
-    name: Create GitHub Release
-    needs: [build-windows, build-linux]
+  # 单独的 release job：下载所有 artifact → 统一上传到 Release（避免并发冲突）
+  release:
+    name: Create Release & Upload Assets
+    needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Download Windows artifact
+      # 下载所有平台的构建产物
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: speedhub-win-x64
-          path: artifacts/win
+          path: artifacts
+          pattern: '*'
+          merge-multiple: false
       
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: speedhub-linux-x64
-          path: artifacts/linux
+      # 列出下载的文件（调试用）
+      - name: List downloaded files
+        run: find artifacts -type f -name '*.zip' -o -name '*.tar.gz' | sort
       
-      - name: Create Release
+      # 从 git log 生成 release body（比自动生成的 Full Changelog 更有信息量）
+      - name: Generate release body
+        id: release_body
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          BODY=$(cat << 'EOF'
+          ## SpeedHub ${{ github.ref_name }}
+
+          ### 下载
+          | 平台 | 文件 |
+          |:------|:------|
+          | **Windows** x64 | `SpeedHub-win-x64.zip` |
+          | **Linux** x64 | `SpeedHub-linux-x64.tar.gz` |
+          | **macOS** Intel | `SpeedHub-osx-x64.zip` |
+          | **macOS** Apple Silicon | `SpeedHub-osx-arm64.zip` |
+
+          ### 快速上手
+          ```bash
+          # Windows
+          SpeedHub.Cli.exe
+
+          # Linux / macOS
+          chmod +x SpeedHub.Cli
+          ./SpeedHub.Cli
+          ```
+
+          启动后打开 **http://localhost:38458** 查看 Web Dashboard。
+
+          ---
+          ### 本次更新内容
+
+          EOF
+          )
+
+          # 追加 git log（仅当前 tag 的提交，不含之前 tag 的）
+          if [ -n "$PREV_TAG" ]; then
+            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+
+          BODY="${BODY}${LOG}"
+
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # 创建 Release 并上传所有资产（单次操作，避免并发冲突）
+      - name: Create Release & Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            artifacts/win/SpeedHub-win-x64.zip
-            artifacts/linux/SpeedHub-linux-x64.tar.gz
-          draft: false
-          prerelease: true
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: artifacts/*/*
+          body: ${{ steps.release_body.outputs.body }}
