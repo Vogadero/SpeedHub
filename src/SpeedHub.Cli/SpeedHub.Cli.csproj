@@ -16,8 +16,8 @@
     <AssemblyVersion>3.0.0.31</AssemblyVersion>
     <FileVersion>3.0.0.31</FileVersion>
 
-    <!-- 应用图标 -->
-    <ApplicationIcon>..\..\assets\app-icon.ico</ApplicationIcon>
+    <!-- 应用图标（仅 Windows 平台） -->
+    <ApplicationIcon Condition="'$(OS)' == 'Windows_NT' OR '$(RuntimeIdentifier)' == 'win-x64' OR '$(RuntimeIdentifier)' == 'win-x86' OR '$(RuntimeIdentifier)' == 'win-arm64'">..\..\assets\app-icon.ico</ApplicationIcon>
 
     <!-- 单文件发布 -->
     <PublishSingleFile>true</PublishSingleFile>
